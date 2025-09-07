@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
+import liff from "@line/liff"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -17,12 +18,65 @@ export default function AuthForm() {
   const [pictureUrl, setPictureUrl] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isInitializing, setIsInitializing] = useState(true)
+  const [isLoggedInWithLine, setIsLoggedInWithLine] = useState(false)
+
+  const liffId = useMemo(() => process.env.NEXT_PUBLIC_LIFF_ID ?? "", [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function initLiff() {
+      try {
+        if (!liffId) {
+          setError("Missing NEXT_PUBLIC_LIFF_ID. Set it in your environment.")
+          return
+        }
+        await liff.init({ liffId })
+
+        if (cancelled) return
+
+        if (!liff.isLoggedIn()) {
+          // Trigger LINE login; this will redirect and come back
+          liff.login()
+          return
+        }
+
+        setIsLoggedInWithLine(true)
+
+        const token = liff.getAccessToken() || ""
+        setLineAccessToken(token)
+
+        // Prefill user profile details if available
+        try {
+          const profile = await liff.getProfile()
+          if (cancelled) return
+          setDisplayName(profile?.displayName || "")
+          setPictureUrl(profile?.pictureUrl || "")
+        } catch {
+          // ignore profile errors; token is enough
+        }
+      } catch (e) {
+        setError("LIFF initialization/login failed. Please try again.")
+      } finally {
+        if (!cancelled) setIsInitializing(false)
+      }
+    }
+
+    void initLiff()
+    return () => {
+      cancelled = true
+    }
+  }, [liffId])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
     setLoading(true)
     try {
+      if (!isLoggedInWithLine || !lineAccessToken) {
+        throw new Error("Please sign in with LINE first.")
+      }
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -56,20 +110,48 @@ export default function AuthForm() {
         <Card className="border-zinc-800 bg-zinc-900/60 backdrop-blur">
           <CardHeader>
             <CardTitle className="text-xl">Sign in</CardTitle>
-            <CardDescription>Authenticate with your LINE token and wallet address.</CardDescription>
+            <CardDescription>Authenticate with LINE, then link your wallet.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm text-zinc-300">LINE Access Token</label>
-                <Input
-                  value={lineAccessToken}
-                  onChange={(e) => setLineAccessToken(e.target.value)}
-                  placeholder="Paste your LINE access token"
-                  className="bg-zinc-950/60 border-zinc-800 placeholder:text-zinc-500"
-                  required
-                />
-              </div>
+              {!isLoggedInWithLine && (
+                <div className="space-y-2">
+                  <Button
+                    type="button"
+                    className="w-full bg-green-500 text-zinc-950 hover:bg-green-400"
+                    onClick={() => liff.login()}
+                    disabled={isInitializing}
+                  >
+                    {isInitializing ? "Initializing LINE..." : "Sign in with LINE"}
+                  </Button>
+                  {error && (
+                    <p className="text-sm text-red-400">{error}</p>
+                  )}
+                </div>
+              )}
+
+              {isLoggedInWithLine && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-sm text-zinc-300">LINE Display Name</label>
+                    <Input
+                      value={displayName}
+                      onChange={(e) => setDisplayName(e.target.value)}
+                      placeholder="Your display name"
+                      className="bg-zinc-950/60 border-zinc-800 placeholder:text-zinc-500"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm text-zinc-300">Picture URL</label>
+                    <Input
+                      value={pictureUrl}
+                      onChange={(e) => setPictureUrl(e.target.value)}
+                      placeholder="https://..."
+                      className="bg-zinc-950/60 border-zinc-800 placeholder:text-zinc-500"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <label className="text-sm text-zinc-300">Wallet Address</label>
@@ -82,33 +164,16 @@ export default function AuthForm() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="text-sm text-zinc-300">Display Name (optional)</label>
-                  <Input
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Your display name"
-                    className="bg-zinc-950/60 border-zinc-800 placeholder:text-zinc-500"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm text-zinc-300">Picture URL (optional)</label>
-                  <Input
-                    value={pictureUrl}
-                    onChange={(e) => setPictureUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="bg-zinc-950/60 border-zinc-800 placeholder:text-zinc-500"
-                  />
-                </div>
-              </div>
-
               {error && (
                 <p className="text-sm text-red-400">{error}</p>
               )}
 
-              <Button type="submit" className="w-full bg-zinc-200 text-zinc-950 hover:bg-white" disabled={loading}>
-                {loading ? "Signing in..." : "Sign in"}
+              <Button
+                type="submit"
+                className="w-full bg-zinc-200 text-zinc-950 hover:bg-white"
+                disabled={loading || !isLoggedInWithLine}
+              >
+                {loading ? "Continuing..." : isLoggedInWithLine ? "Continue" : "Sign in with LINE first"}
               </Button>
             </form>
           </CardContent>
