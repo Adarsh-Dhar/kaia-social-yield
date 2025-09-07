@@ -1,0 +1,125 @@
+"use client"
+
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import Image from "next/image"
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+
+export default function AuthForm() {
+  const router = useRouter()
+
+  const [lineAccessToken, setLineAccessToken] = useState("")
+  const [walletAddress, setWalletAddress] = useState("")
+  const [displayName, setDisplayName] = useState("")
+  const [pictureUrl, setPictureUrl] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lineAccessToken, walletAddress, displayName: displayName || undefined, pictureUrl: pictureUrl || undefined }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data?.error || "Login failed")
+      }
+
+      router.replace("/")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unexpected error"
+      setError(message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <main className="min-h-svh w-full bg-gradient-to-b from-zinc-950 via-zinc-900 to-black text-zinc-100">
+      <div className="mx-auto flex w-full max-w-md flex-col px-6 py-10">
+        <div className="mb-8 flex items-center gap-3">
+          <div className="relative h-8 w-8 overflow-hidden rounded-lg bg-zinc-800 ring-1 ring-zinc-700">
+            <Image src="/placeholder-logo.svg" alt="Logo" fill className="object-contain p-1.5" />
+          </div>
+          <div className="text-lg font-semibold tracking-tight">Social Yield Protocol</div>
+        </div>
+
+        <Card className="border-zinc-800 bg-zinc-900/60 backdrop-blur">
+          <CardHeader>
+            <CardTitle className="text-xl">Sign in</CardTitle>
+            <CardDescription>Authenticate with your LINE token and wallet address.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm text-zinc-300">LINE Access Token</label>
+                <Input
+                  value={lineAccessToken}
+                  onChange={(e) => setLineAccessToken(e.target.value)}
+                  placeholder="Paste your LINE access token"
+                  className="bg-zinc-950/60 border-zinc-800 placeholder:text-zinc-500"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm text-zinc-300">Wallet Address</label>
+                <Input
+                  value={walletAddress}
+                  onChange={(e) => setWalletAddress(e.target.value)}
+                  placeholder="0x... or kaia:..."
+                  className="bg-zinc-950/60 border-zinc-800 placeholder:text-zinc-500"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-sm text-zinc-300">Display Name (optional)</label>
+                  <Input
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Your display name"
+                    className="bg-zinc-950/60 border-zinc-800 placeholder:text-zinc-500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm text-zinc-300">Picture URL (optional)</label>
+                  <Input
+                    value={pictureUrl}
+                    onChange={(e) => setPictureUrl(e.target.value)}
+                    placeholder="https://..."
+                    className="bg-zinc-950/60 border-zinc-800 placeholder:text-zinc-500"
+                  />
+                </div>
+              </div>
+
+              {error && (
+                <p className="text-sm text-red-400">{error}</p>
+              )}
+
+              <Button type="submit" className="w-full bg-zinc-200 text-zinc-950 hover:bg-white" disabled={loading}>
+                {loading ? "Signing in..." : "Sign in"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        <p className="mt-6 text-center text-sm text-zinc-400">
+          By continuing you agree to the Terms and Privacy Policy.
+        </p>
+      </div>
+    </main>
+  )
+}
+
+
