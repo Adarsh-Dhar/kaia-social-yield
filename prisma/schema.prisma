@@ -1,0 +1,79 @@
+// schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  lineUserId    String    @unique // The user's unique ID from LINE
+  walletAddress String    @unique // The user's Kaia wallet address
+  displayName   String?   // User's display name from LINE
+  pictureUrl    String?   // User's profile picture URL from LINE
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  referralsMade Referral[] @relation("Referrer")
+  referralUsed  Referral?  @relation("Referee")
+  userMissions  UserMission[]
+  activeBoost   ActiveBoost?
+}
+
+model Mission {
+  id              String    @id @default(cuid())
+  title           String
+  description     String
+  type            String    // e.g., "INVITE_FRIEND", "FOLLOW_OA"
+  boostMultiplier Float     // e.g., 1.5 for a 1.5x boost
+  boostDuration   Int       // Duration of the boost in hours
+  isRepeatable    Boolean   @default(false)
+
+  // Relation
+  userMissions    UserMission[]
+}
+
+// Join table to track which missions a user has completed
+model UserMission {
+  id        String   @id @default(cuid())
+  userId    String
+  missionId String
+  status    String   // e.g., "PENDING", "COMPLETED"
+  completedAt DateTime?
+
+  user      User      @relation(fields: [userId], references: [id])
+  mission   Mission  @relation(fields: [missionId], references: [id])
+
+  @@unique([userId, missionId])
+  @@index([userId])
+  @@index([missionId])
+}
+
+model Referral {
+  id         String   @id @default(cuid())
+  referrerId String
+  refereeId  String   @unique
+
+  status     String   // e.g., "PENDING_DEPOSIT", "COMPLETED"
+  createdAt  DateTime @default(now())
+
+  referrer   User     @relation("Referrer", fields: [referrerId], references: [id])
+  referee    User     @relation("Referee", fields: [refereeId], references: [id])
+
+  @@index([referrerId])
+}
+
+// Tracks active, temporary yield boosts for a user
+model ActiveBoost {
+  id              String   @id @default(cuid())
+  userId          String @unique
+  boostMultiplier Float
+  expiresAt       DateTime
+
+  user            User     @relation(fields: [userId], references: [id])
+}
