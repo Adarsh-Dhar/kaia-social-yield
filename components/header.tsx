@@ -12,12 +12,15 @@ import { useAccount, useConnect, useDisconnect } from 'wagmi'
 import { Wallet, LogOut, Copy, Check } from "lucide-react"
 import { useState } from "react"
 import { toast } from "@/hooks/use-toast"
+import { useRole } from "@/hooks/use-role"
+import Link from "next/link"
 
 export function Header() {
   const { address, isConnected } = useAccount()
   const { connect, connectors, isPending } = useConnect()
   const { disconnect } = useDisconnect()
   const [copied, setCopied] = useState(false)
+  const { role, isLoading } = useRole()
 
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`
@@ -51,7 +54,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between px-4 max-w-md mx-auto">
+      <div className="container flex h-16 items-center justify-between px-4 max-w-3xl mx-auto">
         {/* Logo/Brand */}
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
@@ -60,8 +63,29 @@ export function Header() {
           <span className="font-semibold text-foreground">Social Yield</span>
         </div>
 
-        {/* Wallet Connection */}
-        <div className="flex items-center gap-2">
+        {/* Role-based CTA + Wallet Connection */}
+        <div className="flex items-center gap-3">
+          {!isLoading && (
+            role === 'user' ? (
+              <Link href="/advertiser/auth" className="hidden sm:inline-flex">
+                <Button className="h-9 px-3 bg-amber-500 hover:bg-amber-500/90 text-white">Advertise your product</Button>
+              </Link>
+            ) : role === 'advertiser' ? (
+              <Link href="/missions" className="hidden sm:inline-flex">
+                <Button variant="secondary" className="h-9 px-3">Earn yield</Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/auth" className="hidden sm:inline-flex">
+                  <Button variant="ghost" className="h-9 px-3">Become a user</Button>
+                </Link>
+                <Link href="/advertiser/auth" className="hidden sm:inline-flex">
+                  <Button className="h-9 px-3 bg-amber-500 hover:bg-amber-500/90 text-white">Become an advertiser</Button>
+                </Link>
+              </>
+            )
+          )}
+
           {isConnected ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

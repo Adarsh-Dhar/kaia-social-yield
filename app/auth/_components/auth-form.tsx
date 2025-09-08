@@ -8,12 +8,14 @@ import liff from "@line/liff"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { useAccount, useConnect } from 'wagmi'
 
 export default function AuthForm() {
   const router = useRouter()
 
   const [lineAccessToken, setLineAccessToken] = useState("")
-  const [walletAddress, setWalletAddress] = useState("")
+  const { address, isConnected } = useAccount()
+  const { connect, connectors, isPending } = useConnect()
   const [displayName, setDisplayName] = useState("")
   const [pictureUrl, setPictureUrl] = useState("")
   const [loading, setLoading] = useState(false)
@@ -77,10 +79,13 @@ export default function AuthForm() {
       if (!isLoggedInWithLine || !lineAccessToken) {
         throw new Error("Please sign in with LINE first.")
       }
+      if (!isConnected || !address) {
+        throw new Error("Please connect your wallet.")
+      }
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lineAccessToken, walletAddress, displayName: displayName || undefined, pictureUrl: pictureUrl || undefined }),
+        body: JSON.stringify({ lineAccessToken, walletAddress: address, displayName: displayName || undefined, pictureUrl: pictureUrl || undefined }),
       })
 
       if (!res.ok) {
@@ -88,7 +93,7 @@ export default function AuthForm() {
         throw new Error(data?.error || "Login failed")
       }
 
-      router.replace("/")
+      router.replace("/dashboard")
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unexpected error"
       setError(message)
@@ -110,7 +115,7 @@ export default function AuthForm() {
         <Card className="border-zinc-800 bg-zinc-900/60 backdrop-blur">
           <CardHeader>
             <CardTitle className="text-xl">Sign in</CardTitle>
-            <CardDescription>Authenticate with LINE, then link your wallet.</CardDescription>
+            <CardDescription>Authenticate with LINE, then connect your wallet.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -154,14 +159,22 @@ export default function AuthForm() {
               )}
 
               <div className="space-y-2">
-                <label className="text-sm text-zinc-300">Wallet Address</label>
-                <Input
-                  value={walletAddress}
-                  onChange={(e) => setWalletAddress(e.target.value)}
-                  placeholder="0x... or kaia:..."
-                  className="bg-zinc-950/60 border-zinc-800 placeholder:text-zinc-500"
-                  required
-                />
+                <label className="text-sm text-zinc-300">Wallet</label>
+                {isConnected && address ? (
+                  <div className="flex items-center justify-between rounded-md border border-zinc-800 bg-zinc-950/60 px-3 py-2">
+                    <span className="text-sm text-zinc-300">{address}</span>
+                    <span className="rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-300">Connected</span>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    onClick={() => connectors[0] && connect({ connector: connectors[0] })}
+                    disabled={isPending}
+                    className="w-full bg-zinc-200 text-zinc-950 hover:bg-white"
+                  >
+                    {isPending ? "Connecting..." : "Connect Wallet"}
+                  </Button>
+                )}
               </div>
 
               {error && (
@@ -171,9 +184,9 @@ export default function AuthForm() {
               <Button
                 type="submit"
                 className="w-full bg-zinc-200 text-zinc-950 hover:bg-white"
-                disabled={loading || !isLoggedInWithLine}
+                disabled={loading || !isLoggedInWithLine || !isConnected}
               >
-                {loading ? "Continuing..." : isLoggedInWithLine ? "Continue" : "Sign in with LINE first"}
+                {loading ? "Continuing..." : isLoggedInWithLine ? (isConnected ? "Continue" : "Connect your wallet") : "Sign in with LINE first"}
               </Button>
             </form>
           </CardContent>

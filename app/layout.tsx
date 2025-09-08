@@ -6,6 +6,7 @@ import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import { Providers } from "./providers"
 import "./globals.css"
+import { Header } from "@/components/header"
 
 export const metadata: Metadata = {
   title: "Social Yield Protocol",
@@ -15,14 +16,29 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
+  user,
+  advertiser,
 }: Readonly<{
   children: React.ReactNode
+  user: React.ReactNode
+  advertiser: React.ReactNode
 }>) {
   return (
     <html lang="en" className="dark">
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
         <Providers>
-          <Suspense fallback={null}>{children}</Suspense>
+          <Header />
+          <div className="min-h-[calc(100vh-4rem)]">
+            <Suspense fallback={null}>
+              {children}
+            </Suspense>
+            <div className="theme-user">
+              <Suspense fallback={null}>{user}</Suspense>
+            </div>
+            <div className="theme-advertiser">
+              <Suspense fallback={null}>{advertiser}</Suspense>
+            </div>
+          </div>
           <Analytics />
         </Providers>
       </body>

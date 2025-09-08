@@ -122,3 +122,14 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Theming wrappers for parallel slots */
+.theme-user {
+  --primary: oklch(0.75 0.17 70); /* orange */
+  --accent: var(--primary);
+}
+
+.theme-advertiser {
+  --primary: oklch(0.75 0.18 142); /* green */
+  --accent: var(--primary);
+}

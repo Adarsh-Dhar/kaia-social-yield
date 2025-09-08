@@ -21,16 +21,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const advertiser = await prisma.advertiser.findUnique({ where: { id: payload.advertiserId } });
-  if (!advertiser) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  try {
+    const rows = await prisma.$queryRaw<any[]>`
+      SELECT * FROM "Advertiser" WHERE "id" = ${payload.advertiserId} LIMIT 1
+    `;
+    const advertiser = rows?.[0] ?? null;
+    if (!advertiser) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  return NextResponse.json({
-    id: advertiser.id,
-    companyName: advertiser.companyName,
-    contactEmail: advertiser.contactEmail,
-    walletAddress: advertiser.walletAddress,
-    createdAt: advertiser.createdAt.toISOString(),
-  });
+    return NextResponse.json({
+      id: advertiser.id,
+      companyName: advertiser.companyName,
+      contactEmail: advertiser.contactEmail,
+      walletAddress: advertiser.walletAddress,
+      createdAt: new Date(advertiser.createdAt).toISOString(),
+    });
+  } catch (e: any) {
+    return NextResponse.json({ error: "Database query failed", detail: e?.message || String(e) }, { status: 500 });
+  }
 }
 
 
