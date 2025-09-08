@@ -2,7 +2,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Header } from "@/components/header"
 import { MissionCard } from "@/components/mission-card"
 import { useMissions } from "@/hooks/use-missions"
 import { ArrowLeft, Loader2, AlertCircle, Gift, UserPlus, CheckCircle } from "lucide-react"
@@ -38,7 +37,6 @@ export default function MissionsPage() {
   if (missionsLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <Header />
         <div className="p-4 max-w-md mx-auto flex items-center justify-center min-h-[calc(100vh-4rem)]">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -52,7 +50,6 @@ export default function MissionsPage() {
   if (missionsError) {
     return (
       <div className="min-h-screen bg-background">
-        <Header />
         <div className="p-4 max-w-md mx-auto">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -70,7 +67,6 @@ export default function MissionsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
       <div className="p-4 max-w-md mx-auto space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" asChild>
