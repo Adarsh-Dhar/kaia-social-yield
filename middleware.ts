@@ -6,7 +6,7 @@ export function middleware(req: NextRequest) {
   const userSession = req.cookies.get("session")?.value || null
   const advertiserSession = req.cookies.get("adv_session")?.value || null
 
-  // Home: route by role or to auth chooser
+  // Home: route by role or to user auth
   if (pathname === "/") {
     const url = req.nextUrl.clone()
     if (advertiserSession) {
@@ -17,7 +17,7 @@ export function middleware(req: NextRequest) {
       url.pathname = "/user/dashboard"
       return NextResponse.redirect(url)
     }
-    url.pathname = "/user/auth/choose"
+    url.pathname = "/user/auth"
     return NextResponse.redirect(url)
   }
 
@@ -38,8 +38,19 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // Handle /user root explicitly: route unauthenticated users to auth, authenticated to dashboard
+  if (pathname === "/user") {
+    const url = req.nextUrl.clone()
+    if (userSession) {
+      url.pathname = "/user/dashboard"
+      return NextResponse.redirect(url)
+    }
+    url.pathname = "/user/auth"
+    return NextResponse.redirect(url)
+  }
+
   // If already authenticated, avoid showing generic auth
-  if (pathname === "/user/auth" || pathname === "/user/auth/choose") {
+  if (pathname === "/user/auth") {
     const url = req.nextUrl.clone()
     // Only consider user session here. An advertiser session should NOT hijack user auth pages.
     if (userSession) {
@@ -56,7 +67,7 @@ export function middleware(req: NextRequest) {
   }
   if (pathname === "/auth/choose") {
     const url = req.nextUrl.clone()
-    url.pathname = "/user/auth/choose"
+    url.pathname = "/user/auth"
     return NextResponse.redirect(url)
   }
 
@@ -69,7 +80,8 @@ export const config = {
     "/auth",
     "/auth/choose",
     "/user/auth",
-    "/user/auth/choose",
+    "/user",
+    
     "/advertiser/:path*",
     "/user/dashboard",
     "/user/missions",

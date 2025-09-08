@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { CircularProgress } from "@/components/circular-progress"
-import { Header } from "@/components/header"
 import { useUserData } from "@/hooks/use-user-data"
 import { Link } from "lucide-react"
 import { Loader2, AlertCircle } from "lucide-react"
@@ -37,7 +36,6 @@ export default function Dashboard() {
   if (userLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <Header />
         <div className="p-4 max-w-md mx-auto flex items-center justify-center min-h-[calc(100vh-4rem)]">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -51,7 +49,6 @@ export default function Dashboard() {
   if (userError) {
     return (
       <div className="min-h-screen bg-background">
-        <Header />
         <div className="p-4 max-w-md mx-auto">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -66,7 +63,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
       <div className="p-4 max-w-md mx-auto space-y-6">
         <Card className="bg-card border-border">
           <CardHeader className="pb-4">

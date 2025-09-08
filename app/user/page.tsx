@@ -1,11 +1,20 @@
 "use client"
 
 import Link from "next/link"
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useRole } from "@/hooks/use-role"
 
 export default function HomePage() {
+  const router = useRouter()
   const { role, isLoading } = useRole()
+
+  useEffect(() => {
+    if (!isLoading && !role) {
+      router.replace("/user/auth?redirectTo=/user")
+    }
+  }, [isLoading, role, router])
 
   return (
     <main className="min-h-[calc(100vh-4rem)] flex items-center justify-center">

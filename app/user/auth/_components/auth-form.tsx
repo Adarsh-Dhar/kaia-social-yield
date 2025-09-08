@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Image from "next/image"
 import liff from "@line/liff"
 
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 
 export default function AuthForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const [lineAccessToken, setLineAccessToken] = useState("")
   const [walletAddress, setWalletAddress] = useState("")
@@ -85,7 +86,8 @@ export default function AuthForm() {
         throw new Error(data?.error || "Login failed")
       }
 
-      router.replace("/")
+      const redirectTo = searchParams.get("redirectTo") || "/"
+      router.replace(redirectTo)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Unexpected error"
       setError(message)
