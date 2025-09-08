@@ -21,8 +21,8 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Protect advertiser area
-  if (pathname.startsWith("/advertiser") && !pathname.startsWith("/advertiser/auth") && !advertiserSession) {
+  // Protect advertiser subpages (allow public access to /advertiser landing)
+  if (pathname.startsWith("/advertiser/") && !pathname.startsWith("/advertiser/auth") && !advertiserSession) {
     const url = req.nextUrl.clone()
     url.pathname = "/advertiser/auth"
     return NextResponse.redirect(url)
@@ -39,10 +39,7 @@ export function middleware(req: NextRequest) {
   // If already authenticated, avoid showing generic auth
   if (pathname === "/user/auth" || pathname === "/user/auth/choose") {
     const url = req.nextUrl.clone()
-    if (advertiserSession) {
-      url.pathname = "/advertiser"
-      return NextResponse.redirect(url)
-    }
+    // Only consider user session here. An advertiser session should NOT hijack user auth pages.
     if (userSession) {
       url.pathname = "/user/dashboard"
       return NextResponse.redirect(url)

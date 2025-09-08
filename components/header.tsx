@@ -81,37 +81,48 @@ export function Header() {
           )}
 
           {isConnected ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="h-9 px-3 border-border bg-card hover:bg-muted">
-                  <Avatar className="h-6 w-6 mr-2">
-                    <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                      {address?.slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-sm font-medium">{formatAddress(address!)}</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onClick={copyAddress} className="cursor-pointer">
-                  {copied ? (
-                    <>
-                      <Check className="mr-2 h-4 w-4" />
-                      Copied!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="mr-2 h-4 w-4" />
-                      Copy Address
-                    </>
-                  )}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleDisconnect} className="cursor-pointer text-destructive focus:text-destructive">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Disconnect
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="h-9 px-3 border-border bg-card hover:bg-muted">
+                    <Avatar className="h-6 w-6 mr-2">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                        {address?.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-medium">{formatAddress(address!)}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={copyAddress} className="cursor-pointer">
+                    {copied ? (
+                      <>
+                        <Check className="mr-2 h-4 w-4" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copy Address
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleDisconnect} className="cursor-pointer text-destructive focus:text-destructive">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Disconnect
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button 
+                onClick={handleDisconnect}
+                variant="secondary"
+                className="h-9 px-3 text-foreground border-border hover:bg-muted hidden sm:inline-flex"
+                title="Disconnect wallet"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Disconnect
+              </Button>
+            </>
           ) : (
             <Button 
               onClick={handleConnect} 

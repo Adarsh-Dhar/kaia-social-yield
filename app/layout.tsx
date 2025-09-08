@@ -16,12 +16,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-  user,
-  advertiser,
 }: Readonly<{
   children: React.ReactNode
-  user: React.ReactNode
-  advertiser: React.ReactNode
 }>) {
   return (
     <html lang="en" className="dark">
@@ -32,12 +28,6 @@ export default function RootLayout({
             <Suspense fallback={null}>
               {children}
             </Suspense>
-            <div className="theme-user">
-              <Suspense fallback={null}>{user}</Suspense>
-            </div>
-            <div className="theme-advertiser">
-              <Suspense fallback={null}>{advertiser}</Suspense>
-            </div>
           </div>
           <Analytics />
         </Providers>
