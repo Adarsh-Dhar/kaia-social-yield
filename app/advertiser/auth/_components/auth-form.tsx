@@ -8,9 +8,12 @@ import { useRouter } from "next/navigation"
 import { useAccount, useConnect } from 'wagmi'
 import Link from "next/link"
 
-export default function AdvertiserAuthForm() {
+export default function AdvertiserAuthForm({ callback }: { callback?: string }) {
   const router = useRouter()
+  const [mode, setMode] = useState<"signin" | "signup">("signin")
+  const [companyName, setCompanyName] = useState("")
   const [contactEmail, setContactEmail] = useState("")
+  const [password, setPassword] = useState("")
   const { address, isConnected } = useAccount()
   const { connect, connectors, isPending } = useConnect()
   const [loading, setLoading] = useState(false)
@@ -21,17 +24,41 @@ export default function AdvertiserAuthForm() {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/advertiser/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ contactEmail: contactEmail || undefined, walletAddress: address || undefined })
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Failed to sign in')
+      if (mode === "signup") {
+        const signupRes = await fetch('/api/advertiser/auth/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ companyName: companyName || undefined, contactEmail: contactEmail || undefined, walletAddress: address || undefined, password: password || undefined })
+        })
+        if (!signupRes.ok) {
+          const data = await signupRes.json().catch(() => ({}))
+          throw new Error(data.error || 'Failed to sign up')
+        }
+
+        const loginRes = await fetch('/api/advertiser/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ contactEmail: contactEmail || undefined, walletAddress: address || undefined, password: password || undefined })
+        })
+        if (!loginRes.ok) {
+          const data = await loginRes.json().catch(() => ({}))
+          throw new Error(data.error || 'Failed to sign in after signup')
+        }
+      } else {
+        const res = await fetch('/api/advertiser/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ contactEmail: contactEmail || undefined, walletAddress: address || undefined, password: password || undefined })
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          throw new Error(data.error || 'Failed to sign in')
+        }
       }
-      router.push('/advertiser')
+      router.push(callback || '/advertiser')
     } catch (e: any) {
       setError(e.message || 'Failed to sign in')
     } finally {
@@ -43,13 +70,31 @@ export default function AdvertiserAuthForm() {
     <div className="container mx-auto max-w-md py-10">
       <Card className="border border-zinc-200 dark:border-zinc-800">
         <CardHeader>
-          <CardTitle>Advertiser Sign In</CardTitle>
+          <CardTitle>{mode === 'signin' ? 'Advertiser Sign In' : 'Advertiser Sign Up'}</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="mb-4 grid grid-cols-2 gap-2">
+            <Button type="button" variant={mode === 'signin' ? "default" : "outline"} onClick={() => setMode('signin')} className="w-full">
+              Sign in
+            </Button>
+            <Button type="button" variant={mode === 'signup' ? "default" : "outline"} onClick={() => setMode('signup')} className="w-full">
+              Sign up
+            </Button>
+          </div>
           <form onSubmit={onSubmit} className="space-y-4">
+            {mode === 'signup' && (
+              <div className="space-y-2">
+                <label className="text-sm text-muted-foreground">Company name</label>
+                <Input type="text" placeholder="Acme Inc." value={companyName} onChange={(e) => setCompanyName(e.target.value)} />
+              </div>
+            )}
             <div className="space-y-2">
               <label className="text-sm text-muted-foreground">Contact email</label>
               <Input type="email" placeholder="you@company.com" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm text-muted-foreground">Password</label>
+              <Input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} />
             </div>
             <div className="space-y-2">
               <label className="text-sm text-muted-foreground">Wallet</label>
@@ -70,8 +115,8 @@ export default function AdvertiserAuthForm() {
               )}
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading || (!contactEmail && !isConnected)}>
-              {loading ? 'Signing in...' : (contactEmail || isConnected ? 'Sign in' : 'Enter email or connect wallet')}
+            <Button type="submit" className="w-full" disabled={loading || !contactEmail || !password || !isConnected || (mode === 'signup' && !companyName)}>
+              {loading ? (mode === 'signup' ? 'Signing up...' : 'Signing in...') : (mode === 'signup' ? 'Sign up' : 'Sign in')}
             </Button>
           </form>
           <div className="mt-4">

@@ -7,7 +7,7 @@ import AdvertiserAuthForm from "./_components/auth-form"
 
 const ADV_JWT_SECRET = process.env.ADV_JWT_SECRET || "dev-adv-secret"
 
-export default async function AdvertiserAuthPage() {
+export default async function AdvertiserAuthPage({ searchParams }: { searchParams: { [key: string]: string | string[] | undefined } }) {
   const session = cookies().get("adv_session")?.value || null
   let payload: { advertiserId: string } | null = null
   if (session) {
@@ -18,8 +18,10 @@ export default async function AdvertiserAuthPage() {
     }
   }
 
+  const callback = typeof searchParams?.callback === "string" ? searchParams.callback : undefined
+
   if (!payload?.advertiserId) {
-    return <AdvertiserAuthForm />
+    return <AdvertiserAuthForm callback={callback} />
   }
 
   const advResults = await prisma.$queryRaw<any[]>`
@@ -28,7 +30,7 @@ export default async function AdvertiserAuthPage() {
   const advertiser = advResults?.[0] ?? null
 
   if (!advertiser) {
-    return <AdvertiserAuthForm />
+    return <AdvertiserAuthForm callback={callback} />
   }
 
   const initials = (advertiser.companyName || "Advertiser").split(" ").map((w: string) => w[0]).slice(0, 2).join("")

@@ -21,10 +21,12 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Protect advertiser subpages (allow public access to /advertiser landing)
-  if (pathname.startsWith("/advertiser/") && !pathname.startsWith("/advertiser/auth") && !advertiserSession) {
+  // Protect all advertiser pages (including /advertiser landing), except the auth screens
+  if (pathname.startsWith("/advertiser") && !pathname.startsWith("/advertiser/auth") && !advertiserSession) {
     const url = req.nextUrl.clone()
+    const callback = req.nextUrl.pathname + (req.nextUrl.search || "")
     url.pathname = "/advertiser/auth"
+    url.searchParams.set("callback", callback)
     return NextResponse.redirect(url)
   }
 
