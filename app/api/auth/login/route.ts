@@ -1,45 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { verifyLineAccessToken } from "@/lib/line";
 import { signAuthToken } from "@/lib/auth";
+import { verifyLineAccessToken } from "@/lib/line";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { lineAccessToken, walletAddress, displayName, pictureUrl } = body ?? {};
+    const { lineAccessToken, walletAddress, displayName, pictureUrl } = await req.json();
 
     if (!lineAccessToken || !walletAddress) {
-      return NextResponse.json({ error: "Missing lineAccessToken or walletAddress" }, { status: 400 });
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    const profile = await verifyLineAccessToken(lineAccessToken);
-    if (!profile?.lineUserId) {
-      return NextResponse.json({ error: "Invalid LINE access token" }, { status: 401 });
+    const lineProfile = await verifyLineAccessToken(lineAccessToken);
+    if (!lineProfile) {
+      return NextResponse.json({ error: "Invalid LINE token" }, { status: 401 });
     }
 
     const user = await prisma.user.upsert({
-      where: { lineUserId: profile.lineUserId },
-      create: {
-        lineUserId: profile.lineUserId,
-        walletAddress,
-        displayName: displayName ?? profile.displayName ?? null,
-        pictureUrl: pictureUrl ?? profile.pictureUrl ?? null,
-      },
+      where: { lineUserId: lineProfile.lineUserId },
       update: {
         walletAddress,
-        displayName: displayName ?? profile.displayName ?? null,
-        pictureUrl: pictureUrl ?? profile.pictureUrl ?? null,
+        displayName: displayName ?? lineProfile.displayName ?? undefined,
+        pictureUrl: pictureUrl ?? lineProfile.pictureUrl ?? undefined,
+      },
+      create: {
+        lineUserId: lineProfile.lineUserId,
+        walletAddress,
+        displayName: displayName ?? lineProfile.displayName ?? undefined,
+        pictureUrl: pictureUrl ?? lineProfile.pictureUrl ?? undefined,
       },
     });
 
     const token = signAuthToken({ userId: user.id });
 
-    const res = NextResponse.json({ token, user: { id: user.id, displayName: user.displayName, pictureUrl: user.pictureUrl, walletAddress: user.walletAddress } }, { status: 200 });
-    res.cookies.set("session", token, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 7 });
+    const res = NextResponse.json({ ok: true });
+    res.cookies.set("session", token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
     return res;
-  } catch (err) {
-    return NextResponse.json({ error: "Unexpected error" }, { status: 500 });
+  } catch (e) {
+    return NextResponse.json({ error: "Failed to login" }, { status: 500 });
   }
 }
 
-
+ 

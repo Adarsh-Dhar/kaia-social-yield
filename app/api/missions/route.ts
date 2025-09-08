@@ -4,28 +4,36 @@ import { getAuthTokenFromRequest, verifyAuthToken } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   const token = getAuthTokenFromRequest(req);
-  const payload = token ? verifyAuthToken(token) : null;
-  if (!payload?.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const payload = verifyAuthToken(token);
+  if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const [missions, userMissions] = await Promise.all([
-    prisma.mission.findMany({ orderBy: { title: "asc" } }),
-    prisma.userMission.findMany({ where: { userId: payload.userId } }),
-  ]);
+  try {
+    const missions = await prisma.mission.findMany({
+      include: {
+        userMissions: {
+          where: { userId: payload.userId },
+          select: { status: true },
+        },
+      },
+      orderBy: { title: "asc" },
+    });
 
-  const statusByMissionId = new Map(userMissions.map((um) => [um.missionId, um.status]));
+    const formatted = missions.map((m) => ({
+      id: m.id,
+      title: m.title,
+      description: m.description,
+      type: m.type,
+      boostMultiplier: m.boostMultiplier,
+      boostDuration: m.boostDuration,
+      isRepeatable: m.isRepeatable,
+      status: (m.userMissions[0]?.status as "PENDING" | "COMPLETED") ?? "PENDING",
+    }));
 
-  const result = missions.map((m) => ({
-    id: m.id,
-    title: m.title,
-    description: m.description,
-    type: m.type,
-    boostMultiplier: m.boostMultiplier,
-    boostDuration: m.boostDuration,
-    isRepeatable: m.isRepeatable,
-    status: statusByMissionId.get(m.id) ?? "PENDING",
-  }));
-
-  return NextResponse.json({ missions: result });
+    return NextResponse.json({ missions: formatted });
+  } catch (e) {
+    return NextResponse.json({ error: "Failed to load missions" }, { status: 500 });
+  }
 }
 
-
+ 

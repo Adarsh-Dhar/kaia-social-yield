@@ -12,6 +12,7 @@ interface MissionCardProps {
   buttonText?: string
   onButtonClick?: () => void
   completed?: boolean
+  boostInfo?: string
   className?: string
 }
 
@@ -22,6 +23,7 @@ export function MissionCard({
   buttonText,
   onButtonClick,
   completed = false,
+  boostInfo,
   className,
 }: MissionCardProps) {
   return (
@@ -43,6 +45,11 @@ export function MissionCard({
           <p className={cn("text-xs mt-1", completed ? "text-muted-foreground" : "text-muted-foreground")}>
             {description}
           </p>
+          {boostInfo && (
+            <p className={cn("text-xs mt-1 font-medium", completed ? "text-muted-foreground" : "text-primary")}>
+              {boostInfo}
+            </p>
+          )}
         </div>
 
         {buttonText && !completed && (

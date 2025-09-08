@@ -4,46 +4,44 @@ import { getAuthTokenFromRequest, verifyAuthToken } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   const token = getAuthTokenFromRequest(req);
-  const payload = token ? verifyAuthToken(token) : null;
-  if (!payload?.userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const payload = verifyAuthToken(token);
+  if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await req.json();
-  const { missionId } = body ?? {};
-  if (!missionId) return NextResponse.json({ error: "Missing missionId" }, { status: 400 });
+  try {
+    const { missionId } = await req.json();
+    if (!missionId) return NextResponse.json({ error: "missionId is required" }, { status: 400 });
 
-  const mission = await prisma.mission.findUnique({ where: { id: missionId } });
-  if (!mission) return NextResponse.json({ error: "Mission not found" }, { status: 404 });
+    const mission = await prisma.mission.findUnique({ where: { id: missionId } });
+    if (!mission) return NextResponse.json({ error: "Mission not found" }, { status: 404 });
 
-  const existing = await prisma.userMission.findUnique({ where: { userId_missionId: { userId: payload.userId, missionId } } });
-  if (existing?.status === "COMPLETED" && !mission.isRepeatable) {
-    return NextResponse.json({ error: "Mission already completed" }, { status: 400 });
-  }
-
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + mission.boostDuration * 60 * 60 * 1000);
-
-  const result = await prisma.$transaction(async (tx) => {
-    await tx.userMission.upsert({
+    const userMission = await prisma.userMission.upsert({
       where: { userId_missionId: { userId: payload.userId, missionId } },
-      create: { userId: payload.userId, missionId, status: "COMPLETED", completedAt: now },
-      update: { status: "COMPLETED", completedAt: now },
+      update: { status: "COMPLETED", completedAt: new Date() },
+      create: { userId: payload.userId, missionId, status: "COMPLETED", completedAt: new Date() },
     });
 
-    // Upsert ActiveBoost: if existing boost exists, take the higher multiplier and latest expiration
-    const prev = await tx.activeBoost.findUnique({ where: { userId: payload.userId } });
-    const newMultiplier = prev ? Math.max(prev.boostMultiplier, mission.boostMultiplier) : mission.boostMultiplier;
-    const newExpiresAt = prev && prev.expiresAt > expiresAt ? prev.expiresAt : expiresAt;
-
-    const boost = await tx.activeBoost.upsert({
-      where: { userId: payload.userId },
-      create: { userId: payload.userId, boostMultiplier: newMultiplier, expiresAt: newExpiresAt },
-      update: { boostMultiplier: newMultiplier, expiresAt: newExpiresAt },
+    const now = new Date();
+    const existing = await prisma.activeBoost.findFirst({
+      where: { userId: payload.userId, expiresAt: { gt: now } },
+      orderBy: { expiresAt: "desc" },
     });
 
-    return { boost };
-  });
+    const baseExpiry = existing?.expiresAt && existing.expiresAt > now ? existing.expiresAt : now;
+    const newExpiry = new Date(baseExpiry.getTime() + mission.boostDuration * 60 * 60 * 1000);
 
-  return NextResponse.json({ status: "COMPLETED", activeBoost: result.boost });
+    await prisma.activeBoost.create({
+      data: {
+        userId: payload.userId,
+        boostMultiplier: mission.boostMultiplier,
+        expiresAt: newExpiry,
+      },
+    });
+
+    return NextResponse.json({ ok: true, userMissionId: userMission.id });
+  } catch (e) {
+    return NextResponse.json({ error: "Failed to complete mission" }, { status: 500 });
+  }
 }
 
-
+ 

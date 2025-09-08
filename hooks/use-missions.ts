@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 
 export interface Mission {
   id: string
@@ -22,32 +22,32 @@ export function useMissions() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    async function fetchMissions() {
-      try {
-        setLoading(true)
-        const response = await fetch("/api/missions")
-        
-        if (!response.ok) {
-          if (response.status === 401) {
-            setError("Please log in to view missions")
-            return
-          }
-          throw new Error(`Failed to fetch missions: ${response.status}`)
+  const fetchMissions = useCallback(async () => {
+    try {
+      setLoading(true)
+      const response = await fetch("/api/missions")
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          setError("Please log in to view missions")
+          return
         }
-        
-        const missionsData = await response.json()
-        setData(missionsData)
-        setError(null)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to fetch missions")
-      } finally {
-        setLoading(false)
+        throw new Error(`Failed to fetch missions: ${response.status}`)
       }
+      
+      const missionsData = await response.json()
+      setData(missionsData)
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch missions")
+    } finally {
+      setLoading(false)
     }
-
-    fetchMissions()
   }, [])
+
+  useEffect(() => {
+    void fetchMissions()
+  }, [fetchMissions])
 
   const completeMission = async (missionId: string) => {
     try {
@@ -67,11 +67,7 @@ export function useMissions() {
       const result = await response.json()
       
       // Refresh missions data
-      const missionsResponse = await fetch("/api/missions")
-      if (missionsResponse.ok) {
-        const missionsData = await missionsResponse.json()
-        setData(missionsData)
-      }
+      await fetchMissions()
 
       return result
     } catch (err) {
@@ -79,5 +75,5 @@ export function useMissions() {
     }
   }
 
-  return { data, loading, error, completeMission, refetch: () => fetchMissions() }
+  return { data, loading, error, completeMission, refetch: fetchMissions }
 }
