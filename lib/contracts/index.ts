@@ -9,7 +9,7 @@ import {
   type PublicClient,
   type WalletClient
 } from 'viem'
-import { sonicBlazeTestnet, sepolia } from 'viem/chains'
+import { anvil } from 'viem/chains'
 import { ESCROW_ABI } from './abi'
 import { ESCROW_ADDRESS } from './address'
 
@@ -19,7 +19,7 @@ export const CAMPAIGN_ESCROW_ADDRESS = ESCROW_ADDRESS
 
 // Types
 export type Campaign = {
-  id: `0x${string}`
+  id: `0x${string}` // bytes32 as hex string
   creator: Address
   totalFunding: bigint
   isActive: boolean
@@ -82,18 +82,12 @@ export class NotOwnerError extends ContractError {
 
 // Helper function to get the appropriate chain
 function getChain() {
-  const chainId = process.env.NEXT_PUBLIC_CHAIN_ID
-  if (chainId === 'sepolia') return sepolia
-  return sonicBlazeTestnet // default
+  return anvil // Always use Anvil for local development
 }
 
 // Helper function to get RPC URL
 function getRpcUrl() {
-  const chain = getChain()
-  if (chain.id === sepolia.id) {
-    return `https://sepolia.infura.io/v3/${process.env.NEXT_PUBLIC_INFURA_API_KEY}`
-  }
-  return 'https://rpc.blaze.soniclabs.com'
+  return 'http://127.0.0.1:8545' // Anvil local RPC
 }
 
 // Create clients
@@ -177,10 +171,11 @@ export class CampaignEscrowService {
 
   // Write functions (require wallet client)
   async createCampaign(initialFunding: string): Promise<Hash> {
+    console.log('Creating campaign with initial funding:', initialFunding)
     if (!this.walletClient || !this.walletClient.account) {
       throw new ContractError('Wallet client with account required for write operations')
     }
-
+    console.log('Wallet client with account:', this.walletClient.account)
     try {
       const amount = parseEther(initialFunding)
       

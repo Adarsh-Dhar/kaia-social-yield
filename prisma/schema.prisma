@@ -1,101 +1,82 @@
-// schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
-// Core user of the savings app
 model User {
-  id            String    @id @default(cuid())
-  lineUserId    String    @unique
-  walletAddress String    @unique
+  id            String        @id @default(cuid())
+  lineUserId    String        @unique
+  walletAddress String        @unique
   displayName   String?
   pictureUrl    String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relations
-  referralsMade Referral[] @relation("Referrer")
-  referralUsed  Referral?  @relation("Referee")
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  activeBoosts  ActiveBoost[]
+  referralUsed  Referral?     @relation("Referee")
+  referralsMade Referral[]    @relation("Referrer")
   userMissions  UserMission[]
-  activeBoosts  ActiveBoost[] // A user can have multiple boosts
 }
 
-// NEW: Represents a business or project that wants to advertise
 model Advertiser {
-  id            String    @id @default(cuid())
+  id            String     @id @default(cuid())
   companyName   String
-  contactEmail  String    @unique
-  walletAddress String    @unique // Wallet used to fund campaigns
+  contactEmail  String     @unique
+  walletAddress String     @unique
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
   passwordHash  String
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Relation: An advertiser can have multiple campaigns
   campaigns     Campaign[]
 }
 
-// NEW: A promotional campaign created by an Advertiser
 model Campaign {
-  id               String    @id @default(cuid())
-  name             String
-  description      String
-  status           String    // e.g., "DRAFT", "ACTIVE", "COMPLETED", "EXPIRED"
-  budget           Float     // Total USDT budget for the campaign
-  remainingBudget  Float
-  startDate        DateTime
-  endDate          DateTime
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @default(now()) @updatedAt
-
-  // Relations
-  advertiserId     String
-  advertiser       Advertiser @relation(fields: [advertiserId], references: [id])
-  
-  missionId        String    @unique // Each campaign has one specific mission
-  mission          Mission   @relation(fields: [missionId], references: [id])
-
-  activeBoosts     ActiveBoost[]
+  id                 String        @id @default(cuid())
+  name               String
+  description        String
+  status             String
+  budget             Float
+  remainingBudget    Float
+  startDate          DateTime
+  endDate            DateTime
+  createdAt          DateTime      @default(now())
+  advertiserId       String
+  missionId          String        @unique
+  updatedAt          DateTime      @default(now()) @updatedAt
+  contractCampaignId String?
+  activeBoosts       ActiveBoost[]
+  advertiser         Advertiser    @relation(fields: [advertiserId], references: [id])
+  mission            Mission       @relation(fields: [missionId], references: [id])
 
   @@index([advertiserId])
 }
 
-// MODIFIED: Missions can now be standard or linked to a Campaign
 model Mission {
-  id              String    @id @default(cuid())
-  title           String
-  description     String
-  type            String    // e.g., "INTERNAL_SOCIAL", "SPONSORED_TASK"
-  boostMultiplier Float
-  boostDuration   Int       // Duration in hours
-  targetCompletions Int     @default(0) // Target number of completions for sponsored missions
-  isRepeatable    Boolean   @default(false)
-  verificationUrl String?   // URL for the API to verify task completion
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @default(now()) @updatedAt
-
-  // Relation
-  userMissions    UserMission[]
-  
-  // A mission can be part of one campaign (optional)
-  campaign        Campaign?
+  id                String        @id @default(cuid())
+  title             String
+  description       String
+  type              String
+  boostMultiplier   Float
+  boostDuration     Int
+  isRepeatable      Boolean       @default(false)
+  verificationUrl   String?
+  targetCompletions Int           @default(0)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @default(now()) @updatedAt
+  campaign          Campaign?
+  userMissions      UserMission[]
 }
 
-// Join table to track which missions a user has completed
 model UserMission {
   id          String    @id @default(cuid())
   userId      String
   missionId   String
-  status      String    // e.g., "PENDING", "COMPLETED"
+  status      String
   completedAt DateTime?
-
-  user        User      @relation(fields: [userId], references: [id])
   mission     Mission   @relation(fields: [missionId], references: [id])
+  user        User      @relation(fields: [userId], references: [id])
 
   @@unique([userId, missionId])
   @@index([userId])
@@ -106,26 +87,21 @@ model Referral {
   id         String   @id @default(cuid())
   referrerId String
   refereeId  String   @unique
-  status     String   // e.g., "PENDING_DEPOSIT", "COMPLETED"
+  status     String
   createdAt  DateTime @default(now())
-
-  referrer   User     @relation("Referrer", fields: [referrerId], references: [id])
   referee    User     @relation("Referee", fields: [refereeId], references: [id])
+  referrer   User     @relation("Referrer", fields: [referrerId], references: [id])
 
   @@index([referrerId])
 }
 
-// MODIFIED: Tracks active boosts, now linked to campaigns if applicable
 model ActiveBoost {
   id              String    @id @default(cuid())
   userId          String
   boostMultiplier Float
   expiresAt       DateTime
-
-  // Relation to track which campaign funded this boost (optional)
   campaignId      String?
   campaign        Campaign? @relation(fields: [campaignId], references: [id])
-
   user            User      @relation(fields: [userId], references: [id])
 
   @@index([userId])

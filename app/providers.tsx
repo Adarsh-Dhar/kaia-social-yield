@@ -3,13 +3,12 @@
 import { createConfig, http, WagmiProvider } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { injected } from 'wagmi/connectors'
-import { sonicBlazeTestnet, sepolia } from 'viem/chains'
+import { anvil } from 'viem/chains'
 
 const config = createConfig({
-  chains: [sonicBlazeTestnet, sepolia],
+  chains: [anvil],
   transports: {
-    [sonicBlazeTestnet.id]: http('https://rpc.blaze.soniclabs.com'),
-    [sepolia.id]: http(`https://sepolia.infura.io/v3/${process.env.MAINNET_INFURA_API_KEY}`),
+    [anvil.id]: http('http://127.0.0.1:8545'),
   },
   connectors: [
     injected({

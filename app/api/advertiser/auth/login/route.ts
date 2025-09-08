@@ -8,7 +8,8 @@ const ADV_JWT_SECRET = process.env.ADV_JWT_SECRET || "dev-adv-secret";
 export async function POST(req: NextRequest) {
   try {
     const { contactEmail, walletAddress, password } = await req.json();
-    if (!contactEmail || !walletAddress || !password) {
+    if (!contactEmail || !walletAddress || !password || 
+        contactEmail.trim() === "" || walletAddress.trim() === "" || password.trim() === "") {
       return NextResponse.json({ error: "Email, wallet, and password are required" }, { status: 400 });
     }
 

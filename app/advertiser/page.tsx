@@ -1,13 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { useAccount, usePublicClient } from 'wagmi';
+import { useCampaignEscrowSimple } from '@/hooks/use-campaign-escrow-simple';
+import { CAMPAIGN_ESCROW_ABI } from '@/lib/contracts';
+import { decodeEventLog } from 'viem';
 
 type CampaignRow = {
   id: string;
@@ -60,6 +64,11 @@ export default function AdvertiserHome() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  
+  // Wallet and contract integration
+  const { address, isConnected } = useAccount();
+  const { createCampaign, isLoading: contractLoading, error: contractError, clearError } = useCampaignEscrowSimple();
+  const publicClient = usePublicClient();
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -80,7 +89,7 @@ export default function AdvertiserHome() {
 
   useEffect(() => {
     let mounted = true;
-    (async () => {
+    const loadCampaigns = async () => {
       try {
         const res = await fetch("/api/advertiser/campaigns", { cache: "no-store" });
         const data = await res.json();
@@ -91,38 +100,28 @@ export default function AdvertiserHome() {
       } finally {
         if (mounted) setLoading(false);
       }
-    })();
+    };
+    
+    loadCampaigns();
     return () => {
       mounted = false;
     };
   }, []);
 
+  // Clear contract error when component mounts or when dialog opens
+  useEffect(() => {
+    if (isDialogOpen) {
+      // Use setTimeout to ensure this runs after render
+      const timeoutId = setTimeout(() => {
+        clearError();
+      }, 0);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isDialogOpen, clearError]);
+
   const hasRows = useMemo(() => rows.length > 0, [rows]);
 
-  async function onPause(id: string) {
-    await fetch(`/api/advertiser/campaigns/${id}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "pause" }),
-    });
-    await refresh();
-  }
-
-  async function onResume(id: string) {
-    await fetch(`/api/advertiser/campaigns/${id}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "resume" }),
-    });
-    await refresh();
-  }
-
-  async function onDelete(id: string) {
-    await fetch(`/api/advertiser/campaigns/${id}`, { method: "DELETE" });
-    await refresh();
-  }
-
-  async function refresh() {
+  const refresh = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -135,13 +134,36 @@ export default function AdvertiserHome() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  function resetForm() {
+  const onPause = useCallback(async (id: string) => {
+    await fetch(`/api/advertiser/campaigns/${id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "pause" }),
+    });
+    await refresh();
+  }, [refresh]);
+
+  const onResume = useCallback(async (id: string) => {
+    await fetch(`/api/advertiser/campaigns/${id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "resume" }),
+    });
+    await refresh();
+  }, [refresh]);
+
+  const onDelete = useCallback(async (id: string) => {
+    await fetch(`/api/advertiser/campaigns/${id}`, { method: "DELETE" });
+    await refresh();
+  }, [refresh]);
+
+  const resetForm = useCallback(() => {
     setName("");
     setDescription("");
     setBudget("");
-    setStartDate(() => new Date().toISOString());
+    setStartDate(new Date().toISOString());
     setEndDate(() => {
       const d = new Date();
       d.setDate(d.getDate() + 5);
@@ -154,19 +176,100 @@ export default function AdvertiserHome() {
     setTargetCompletions("100");
     setFormError(null);
     setEditingId(null);
-  }
+  }, []);
 
-  async function onCreateCampaign(e: React.FormEvent) {
+  const onCreateCampaign = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setFormError(null);
+    
     try {
+      // Check wallet connection
+      if (!isConnected || !address) {
+        throw new Error("Please connect your wallet to create a campaign");
+      }
+
+      // Check if wallet is connected to the correct network
+      // The contract is deployed to Anvil local network (31337)
+      console.log('Current network:', publicClient?.chain?.name || 'Unknown');
+      console.log('Expected network: Anvil (31337)');
+
+      let contractCampaignId: string | null = null;
+      
+      // Only create contract campaign for new campaigns (not edits)
+      if (!editingId) {
+        // Create campaign on contract first
+        console.log('Creating campaign on contract with budget:', budget);
+        console.log('Wallet connected:', isConnected);
+        console.log('Address:', address);
+        console.log('Contract loading:', contractLoading);
+        console.log('Contract error:', contractError);
+        
+        const txHash = await createCampaign(budget);
+        console.log('Transaction hash received:', txHash);
+        
+        if (!txHash) {
+          const networkInfo = publicClient?.chain ? `Current network: ${publicClient.chain.name} (${publicClient.chain.id})` : 'Network not detected';
+          const expectedNetwork = 'Expected: Anvil (31337)';
+          throw new Error(`Failed to create campaign on contract. ${networkInfo}. ${expectedNetwork}. Error: ${contractError || 'Unknown error'}`);
+        }
+
+        // Wait for transaction confirmation
+        if (publicClient) {
+          const receipt = await publicClient.waitForTransactionReceipt({
+            hash: txHash,
+            confirmations: 1
+          });
+          
+          if (receipt.status !== 'success') {
+            throw new Error("Contract transaction failed");
+          }
+          
+          // Extract campaign ID from transaction logs
+          // The contract emits CampaignCreated(campaignId, msg.sender, initialFunding)
+          const campaignCreatedLog = receipt.logs.find((log: any) => {
+            try {
+              const decoded = decodeEventLog({
+                abi: CAMPAIGN_ESCROW_ABI,
+                data: log.data,
+                topics: log.topics,
+              });
+              return decoded.eventName === 'CampaignCreated';
+            } catch {
+              return false;
+            }
+          });
+          
+          if (campaignCreatedLog) {
+            try {
+              const decoded = decodeEventLog({
+                abi: CAMPAIGN_ESCROW_ABI,
+                data: campaignCreatedLog.data,
+                topics: campaignCreatedLog.topics,
+              });
+              if (decoded.args && Array.isArray(decoded.args) && decoded.args.length > 0) {
+                // Convert bytes32 to hex string (0x prefix)
+                const campaignIdBytes32 = decoded.args[0] as `0x${string}`;
+                contractCampaignId = campaignIdBytes32;
+              } else {
+                throw new Error("Campaign ID not found in event args");
+              }
+            } catch (error) {
+              throw new Error("Could not decode campaign creation event");
+            }
+          } else {
+            throw new Error("Could not find CampaignCreated event in transaction");
+          }
+        }
+      }
+
       const payload = {
         name,
         description,
         budget: Number(budget || 0),
         startDate,
         endDate,
+        contractCampaignId, // Include the contract campaign ID
         mission: {
           title: missionTitle,
           description: missionDescription,
@@ -178,6 +281,7 @@ export default function AdvertiserHome() {
           verificationUrl: null,
         },
       };
+      
       const url = editingId ? `/api/advertiser/campaigns/${editingId}` : "/api/advertiser/campaigns";
       const method = editingId ? "PUT" : "POST";
       const res = await fetch(url, {
@@ -195,9 +299,9 @@ export default function AdvertiserHome() {
     } finally {
       setSubmitting(false);
     }
-  }
+  }, [isConnected, address, createCampaign, publicClient, budget, name, description, startDate, endDate, missionTitle, missionDescription, boostMultiplier, boostDuration, targetCompletions, editingId, resetForm]);
 
-  function openEdit(row: CampaignRow) {
+  const openEdit = useCallback((row: CampaignRow) => {
     setEditingId(row.id);
     setIsDialogOpen(true);
     setName(row.name);
@@ -210,7 +314,7 @@ export default function AdvertiserHome() {
     setBoostMultiplier(String(row.mission.boostMultiplier));
     setBoostDuration(String(row.mission.boostDuration));
     setTargetCompletions(String(row.mission.targetCompletions));
-  }
+  }, []);
 
   return (
     <main className="container mx-auto max-w-6xl px-6 py-10">
@@ -223,9 +327,12 @@ export default function AdvertiserHome() {
           <DialogTrigger asChild>
             <Button onClick={() => { setEditingId(null); resetForm(); }}>New Campaign</Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[600px]" key={editingId || 'new'}>
             <DialogHeader>
               <DialogTitle>{editingId ? "Edit campaign" : "Create a new campaign"}</DialogTitle>
+              <DialogDescription>
+                {editingId ? "Update your campaign details and mission parameters." : "Set up a new campaign with mission details and budget allocation."}
+              </DialogDescription>
             </DialogHeader>
             <form onSubmit={onCreateCampaign} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -325,11 +432,34 @@ export default function AdvertiserHome() {
                 </div>
               </div>
 
+              {!isConnected && (
+                <div className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-3 rounded-md">
+                  Please connect your wallet to create a campaign
+                </div>
+              )}
+              
+              {isConnected && publicClient && (
+                <div className="text-sm text-blue-600 bg-blue-50 dark:bg-blue-950/20 p-3 rounded-md">
+                  Connected to: {publicClient.chain?.name} (Chain ID: {publicClient.chain?.id})
+                  <br />
+                  <span className="text-xs text-gray-600">
+                    Expected: Anvil (31337)
+                  </span>
+                </div>
+              )}
+              
+              {contractError && <div className="text-sm text-red-600">{contractError}</div>}
               {formError && <div className="text-sm text-red-600">{formError}</div>}
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={submitting}>Cancel</Button>
-                <Button type="submit" disabled={submitting}>{submitting ? (editingId ? "Saving…" : "Creating…") : (editingId ? "Save Changes" : "Create Campaign")}</Button>
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={submitting || contractLoading}>Cancel</Button>
+                <Button type="submit" disabled={submitting || contractLoading || !isConnected}>
+                  {submitting ? (
+                    contractLoading ? "Creating on blockchain..." : (editingId ? "Saving…" : "Creating…")
+                  ) : (
+                    editingId ? "Save Changes" : "Create Campaign"
+                  )}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -369,7 +499,9 @@ export default function AdvertiserHome() {
                     <td className="px-4 py-3 whitespace-nowrap">{Math.max(0, Math.round(r.remainingBudget))} / {Math.round(r.budget)}</td>
                     <td className="px-4 py-3 whitespace-nowrap">{r.mission.type.replaceAll("_", " ")}</td>
                     <td className="px-4 py-3 whitespace-nowrap">{r.mission.boostMultiplier.toFixed(1)}x for {r.mission.boostDuration}h</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{new Date(r.period.startDate).toLocaleString(undefined, { month: "short", day: "numeric" })} - {new Date(r.period.endDate).toLocaleString(undefined, { month: "short", day: "numeric" })}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {new Date(r.period.startDate).toLocaleDateString('en-US', { month: "short", day: "numeric" })} - {new Date(r.period.endDate).toLocaleDateString('en-US', { month: "short", day: "numeric" })}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
                         <a href={`/advertiser/campaigns/${r.id}`} className="underline underline-offset-2">View</a>

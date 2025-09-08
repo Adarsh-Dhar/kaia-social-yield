@@ -25,9 +25,14 @@ export async function POST(req: NextRequest) {
   const auth = requireAdvertiser(req);
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const { name, description, budget, startDate, endDate, mission } = await req.json();
+    const { name, description, budget, startDate, endDate, mission, contractCampaignId } = await req.json();
     if (!name || !description || !budget || !startDate || !endDate || !mission) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    }
+
+    // Validate that contract campaign ID is provided for new campaigns
+    if (!contractCampaignId) {
+      return NextResponse.json({ error: "Contract campaign ID is required" }, { status: 400 });
     }
 
     const createdMission = await prisma.mission.create({
@@ -52,6 +57,7 @@ export async function POST(req: NextRequest) {
         remainingBudget: Number(budget),
         startDate: new Date(startDate),
         endDate: new Date(endDate),
+        contractCampaignId, // Store the contract campaign ID
         advertiser: { connect: { id: auth.advertiserId } },
         mission: { connect: { id: createdMission.id } },
       },

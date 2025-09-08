@@ -11,7 +11,7 @@ import {
 import { CAMPAIGN_ESCROW_ABI, CAMPAIGN_ESCROW_ADDRESS } from '@/lib/contracts'
 
 export interface Campaign {
-  id: `0x${string}`
+  id: `0x${string}` // bytes32 as hex string
   creator: Address
   totalFunding: bigint
   isActive: boolean
@@ -140,19 +140,36 @@ export function useCampaignEscrowSimple(): UseCampaignEscrowSimpleReturn {
 
   // Write functions using walletClient directly
   const createCampaign = useCallback(async (initialFunding: string): Promise<Hash | null> => {
-    if (!walletClient || !walletClient.account) return null
+    console.log('createCampaign called with:', initialFunding);
+    console.log('walletClient:', !!walletClient);
+    console.log('walletClient.account:', walletClient?.account);
+    
+    if (!walletClient || !walletClient.account) {
+      console.log('No wallet client or account available');
+      setError('Wallet not connected or account not available');
+      return null
+    }
 
     return executeWithLoading(async () => {
       const amount = parseEther(initialFunding)
+      console.log('Parsed amount:', amount.toString());
+      console.log('Contract address:', CAMPAIGN_ESCROW_ADDRESS);
       
-      return await walletClient.writeContract({
-        address: CAMPAIGN_ESCROW_ADDRESS,
-        abi: CAMPAIGN_ESCROW_ABI,
-        functionName: 'createCampaign',
-        args: [amount],
-        value: amount,
-        account: walletClient.account
-      })
+      try {
+        const result = await walletClient.writeContract({
+          address: CAMPAIGN_ESCROW_ADDRESS,
+          abi: CAMPAIGN_ESCROW_ABI,
+          functionName: 'createCampaign',
+          args: [amount],
+          value: amount,
+          account: walletClient.account
+        })
+        console.log('Contract call successful, hash:', result);
+        return result
+      } catch (error) {
+        console.error('Contract call failed:', error);
+        throw error
+      }
     })
   }, [walletClient, executeWithLoading])
 

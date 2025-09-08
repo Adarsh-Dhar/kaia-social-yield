@@ -29,7 +29,12 @@ export default function AdvertiserAuthForm({ callback }: { callback?: string }) 
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ companyName: companyName || undefined, contactEmail: contactEmail || undefined, walletAddress: address || undefined, password: password || undefined })
+          body: JSON.stringify({ 
+            companyName: companyName || "", 
+            contactEmail: contactEmail || "", 
+            walletAddress: address || "", 
+            password: password || "" 
+          })
         })
         if (!signupRes.ok) {
           const data = await signupRes.json().catch(() => ({}))
@@ -40,7 +45,11 @@ export default function AdvertiserAuthForm({ callback }: { callback?: string }) 
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ contactEmail: contactEmail || undefined, walletAddress: address || undefined, password: password || undefined })
+          body: JSON.stringify({ 
+            contactEmail: contactEmail || "", 
+            walletAddress: address || "", 
+            password: password || "" 
+          })
         })
         if (!loginRes.ok) {
           const data = await loginRes.json().catch(() => ({}))
@@ -51,7 +60,11 @@ export default function AdvertiserAuthForm({ callback }: { callback?: string }) 
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify({ contactEmail: contactEmail || undefined, walletAddress: address || undefined, password: password || undefined })
+          body: JSON.stringify({ 
+            contactEmail: contactEmail || "", 
+            walletAddress: address || "", 
+            password: password || "" 
+          })
         })
         if (!res.ok) {
           const data = await res.json().catch(() => ({}))
