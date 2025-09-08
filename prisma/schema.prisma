@@ -51,6 +51,7 @@ model Campaign {
   startDate        DateTime
   endDate          DateTime
   createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @default(now()) @updatedAt
 
   // Relations
   advertiserId     String
@@ -72,8 +73,11 @@ model Mission {
   type            String    // e.g., "INTERNAL_SOCIAL", "SPONSORED_TASK"
   boostMultiplier Float
   boostDuration   Int       // Duration in hours
+  targetCompletions Int     @default(0) // Target number of completions for sponsored missions
   isRepeatable    Boolean   @default(false)
   verificationUrl String?   // URL for the API to verify task completion
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @default(now()) @updatedAt
 
   // Relation
   userMissions    UserMission[]

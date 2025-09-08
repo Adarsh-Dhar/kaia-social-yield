@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
         type: mission.type ?? "SPONSORED_TASK",
         boostMultiplier: mission.boostMultiplier,
         boostDuration: mission.boostDuration,
+        targetCompletions: mission.targetCompletions ?? 0,
         isRepeatable: mission.isRepeatable ?? false,
         verificationUrl: mission.verificationUrl ?? null,
       },
@@ -57,8 +58,8 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ id: campaign.id });
-  } catch (e) {
-    return NextResponse.json({ error: "Failed to create campaign" }, { status: 500 });
+  } catch (e: any) {
+    return NextResponse.json({ error: "Failed to create campaign", detail: e?.message || String(e) }, { status: 500 });
   }
 }
 
@@ -69,20 +70,44 @@ export async function GET(req: NextRequest) {
     const campaigns = await prisma.campaign.findMany({
       where: { advertiserId: auth.advertiserId },
       include: {
-        mission: true,
+        mission: { include: { userMissions: true } },
         activeBoosts: true,
       },
       orderBy: { createdAt: "desc" },
     });
 
-    const formatted = campaigns.map((c) => ({
-      id: c.id,
-      name: c.name,
-      status: c.status,
-      remainingBudget: c.remainingBudget,
-      missionTitle: c.mission.title,
-      boostsActive: c.activeBoosts.length,
-    }));
+    const formatted = campaigns.map((c) => {
+      const completions = c.mission.userMissions.filter((um) => um.status === "COMPLETED").length;
+      const target = (c.mission as any).targetCompletions ?? 0;
+      return {
+        id: c.id,
+        name: c.name,
+        description: c.description,
+        status: c.status,
+        budget: c.budget,
+        remainingBudget: c.remainingBudget,
+        period: { startDate: c.startDate.toISOString(), endDate: c.endDate.toISOString() },
+        mission: {
+          id: c.mission.id,
+          title: c.mission.title,
+          type: c.mission.type,
+          boostMultiplier: c.mission.boostMultiplier,
+          boostDuration: c.mission.boostDuration,
+          description: c.mission.description,
+          targetCompletions: target,
+          completions,
+        },
+        boostsActive: c.activeBoosts.length,
+        actions: {
+          canView: true,
+          canEdit: c.status === "DRAFT",
+          canDelete: c.status === "DRAFT",
+          canPause: c.status === "ACTIVE",
+          canResume: c.status === "PAUSED",
+          canViewReport: c.status === "ACTIVE" || c.status === "COMPLETED" || c.status === "PAUSED",
+        },
+      };
+    });
     return NextResponse.json({ campaigns: formatted });
   } catch (e) {
     return NextResponse.json({ error: "Failed to list campaigns" }, { status: 500 });

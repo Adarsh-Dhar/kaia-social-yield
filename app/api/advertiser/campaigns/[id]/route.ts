@@ -38,6 +38,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({
       id: campaign.id,
       name: campaign.name,
+      description: campaign.description,
       status: campaign.status,
       budget: campaign.budget,
       remainingBudget: campaign.remainingBudget,
@@ -45,13 +46,42 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       mission: {
         id: campaign.mission.id,
         title: campaign.mission.title,
+        description: campaign.mission.description,
+        type: campaign.mission.type,
         boostMultiplier: campaign.mission.boostMultiplier,
         boostDuration: campaign.mission.boostDuration,
+        targetCompletions: (campaign.mission as any).targetCompletions ?? 0,
         completions,
       },
     });
   } catch (e) {
     return NextResponse.json({ error: "Failed to load campaign" }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  // Supports simple state transitions via action field: { action: "pause" | "resume" }
+  const auth = requireAdvertiser(req);
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const id = params.id;
+  try {
+    const body = await req.json();
+    const action = String(body?.action || "").toLowerCase();
+    const existing = await prisma.campaign.findFirst({ where: { id, advertiserId: auth.advertiserId } });
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (action === "pause") {
+      if (existing.status !== "ACTIVE") return NextResponse.json({ error: "Only active campaigns can be paused" }, { status: 400 });
+      await prisma.campaign.update({ where: { id }, data: { status: "PAUSED" } });
+      return NextResponse.json({ ok: true });
+    }
+    if (action === "resume") {
+      if (existing.status !== "PAUSED") return NextResponse.json({ error: "Only paused campaigns can be resumed" }, { status: 400 });
+      await prisma.campaign.update({ where: { id }, data: { status: "ACTIVE" } });
+      return NextResponse.json({ ok: true });
+    }
+    return NextResponse.json({ error: "Unsupported action" }, { status: 400 });
+  } catch (e) {
+    return NextResponse.json({ error: "Failed to update campaign state" }, { status: 500 });
   }
 }
 
@@ -85,6 +115,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
           description: body.mission.description ?? undefined,
           boostMultiplier: body.mission.boostMultiplier ?? undefined,
           boostDuration: body.mission.boostDuration ?? undefined,
+          targetCompletions: body.mission.targetCompletions ?? undefined,
           isRepeatable: body.mission.isRepeatable ?? undefined,
           verificationUrl: body.mission.verificationUrl ?? undefined,
         },
@@ -94,6 +125,22 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     return NextResponse.json({ id: updated.id });
   } catch (e) {
     return NextResponse.json({ error: "Failed to update campaign" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  const auth = requireAdvertiser(req);
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const id = params.id;
+  try {
+    const existing = await prisma.campaign.findFirst({ where: { id, advertiserId: auth.advertiserId } });
+    if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    if (existing.status !== "DRAFT") return NextResponse.json({ error: "Only draft campaigns can be deleted" }, { status: 400 });
+
+    await prisma.campaign.delete({ where: { id } });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    return NextResponse.json({ error: "Failed to delete campaign" }, { status: 500 });
   }
 }
 
