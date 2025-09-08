@@ -102,7 +102,7 @@ export default function WithdrawPage() {
       <div className="p-4 max-w-md mx-auto space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" asChild>
-            <a href="/dashboard">
+            <a href="/user/dashboard">
               <ArrowLeft className="h-4 w-4" />
             </a>
           </Button>
@@ -190,5 +190,7 @@ export default function WithdrawPage() {
     </div>
   )
 }
+
+
 
 

@@ -1,16 +1,14 @@
 import { cookies } from "next/headers"
-import { redirect } from "next/navigation"
 import { verifyAuthToken } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import AuthForm from "../../auth/_components/auth-form"
+import AuthForm from "./_components/auth-form"
 
 export default async function AuthPage() {
   const session = cookies().get("session")?.value || null
   const payload = session ? verifyAuthToken(session) : null
 
-  // If unauthenticated, show the Auth form
   if (!payload?.userId) {
     return <AuthForm />
   }
@@ -55,5 +53,7 @@ export default async function AuthPage() {
     </div>
   )
 }
+
+
 
 

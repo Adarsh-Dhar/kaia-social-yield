@@ -48,7 +48,7 @@ export default function ProfilePage() {
 
   const handleLogout = () => {
     document.cookie = "session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;"
-    window.location.href = "/auth"
+    window.location.href = "/user/auth"
   }
 
   if (userLoading) {
@@ -84,7 +84,7 @@ export default function ProfilePage() {
       <div className="p-4 max-w-md mx-auto space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" asChild>
-            <a href="/dashboard">
+            <a href="/user/dashboard">
               <ArrowLeft className="h-4 w-4" />
             </a>
           </Button>
@@ -239,5 +239,7 @@ export default function ProfilePage() {
     </div>
   )
 }
+
+
 
 

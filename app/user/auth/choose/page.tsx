@@ -28,7 +28,7 @@ export default function ChooseRolePage() {
                 Deposit, earn, and complete missions for boosts.
               </p>
               <Button asChild className="w-full bg-amber-500 hover:bg-amber-500/90 text-white">
-                <Link href="/auth">Continue as User</Link>
+                <Link href="/user/auth">Continue as User</Link>
               </Button>
             </CardContent>
           </Card>
@@ -52,7 +52,7 @@ export default function ChooseRolePage() {
           <div className="mt-8 text-center text-sm text-muted-foreground">
             {role === 'user' ? (
               <span>
-                You’re already signed in as a user. Visit <Link href="/dashboard" className="underline">your dashboard</Link>.
+                You’re already signed in as a user. Visit <Link href="/user/dashboard" className="underline">your dashboard</Link>.
               </span>
             ) : (
               <span>
@@ -65,5 +65,7 @@ export default function ChooseRolePage() {
     </main>
   )
 }
+
+
 
 

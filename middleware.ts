@@ -14,39 +14,51 @@ export function middleware(req: NextRequest) {
       return NextResponse.redirect(url)
     }
     if (userSession) {
-      url.pathname = "/dashboard"
+      url.pathname = "/user/dashboard"
       return NextResponse.redirect(url)
     }
-    url.pathname = "/auth/choose"
+    url.pathname = "/user/auth/choose"
     return NextResponse.redirect(url)
   }
 
   // Protect advertiser area
-  if (pathname.startsWith("/advertiser") && !advertiserSession) {
+  if (pathname.startsWith("/advertiser") && !pathname.startsWith("/advertiser/auth") && !advertiserSession) {
     const url = req.nextUrl.clone()
     url.pathname = "/advertiser/auth"
     return NextResponse.redirect(url)
   }
 
   // Protect user area
-  const userProtectedPrefixes = ["/dashboard", "/missions", "/profile", "/funds"]
+  const userProtectedPrefixes = ["/user/dashboard", "/user/missions", "/user/profile", "/user/funds"]
   if (userProtectedPrefixes.some(prefix => pathname.startsWith(prefix)) && !userSession) {
     const url = req.nextUrl.clone()
-    url.pathname = "/auth"
+    url.pathname = "/user/auth"
     return NextResponse.redirect(url)
   }
 
   // If already authenticated, avoid showing generic auth
-  if (pathname === "/auth" || pathname === "/auth/choose") {
+  if (pathname === "/user/auth" || pathname === "/user/auth/choose") {
     const url = req.nextUrl.clone()
     if (advertiserSession) {
       url.pathname = "/advertiser"
       return NextResponse.redirect(url)
     }
     if (userSession) {
-      url.pathname = "/dashboard"
+      url.pathname = "/user/dashboard"
       return NextResponse.redirect(url)
     }
+  }
+
+  // Legacy redirects
+  if (pathname === "/auth") {
+    const url = req.nextUrl.clone()
+    url.pathname = "/user/auth"
+    return NextResponse.redirect(url)
+  }
+  if (pathname === "/auth/choose") {
+    const url = req.nextUrl.clone()
+    url.pathname = "/user/auth/choose"
+    return NextResponse.redirect(url)
   }
 
   return NextResponse.next()
@@ -57,11 +69,13 @@ export const config = {
     "/",
     "/auth",
     "/auth/choose",
+    "/user/auth",
+    "/user/auth/choose",
     "/advertiser/:path*",
-    "/dashboard",
-    "/missions",
-    "/profile",
-    "/funds/:path*",
+    "/user/dashboard",
+    "/user/missions",
+    "/user/profile",
+    "/user/funds/:path*",
   ],
 }
 

@@ -13,20 +13,17 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 export default function Dashboard() {
   const { data: userData, loading: userLoading, error: userError } = useUserData()
 
-  // Calculate APY and boost information
   const baseAPY = 4.0
   const boostMultiplier = userData?.boost.multiplier || 1
   const socialBoost = boostMultiplier > 1 ? (boostMultiplier - 1) * 100 : 0
   const totalAPY = baseAPY + socialBoost
   const apyPercentage = Math.round(totalAPY * 10) / 10
 
-  // Format USDT amounts
   const formatUSDT = (amount: string) => {
     const num = parseFloat(amount)
     return isNaN(num) ? "0.00" : num.toFixed(2)
   }
 
-  // Get user initials for avatar fallback
   const getUserInitials = (name: string | null) => {
     if (!name) return "U"
     return name
@@ -71,7 +68,6 @@ export default function Dashboard() {
     <div className="min-h-screen bg-background">
       <Header />
       <div className="p-4 max-w-md mx-auto space-y-6">
-        {/* Main Balance Card */}
         <Card className="bg-card border-border">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-3">
@@ -106,16 +102,15 @@ export default function Dashboard() {
 
             <div className="flex gap-3">
               <Button asChild className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground">
-                <a href="/funds/deposit">Deposit</a>
+                <a href="/user/funds/deposit">Deposit</a>
               </Button>
               <Button asChild variant="outline" className="flex-1 border-border text-foreground hover:bg-muted bg-transparent">
-                <a href="/funds/withdraw">Withdraw</a>
+                <a href="/user/funds/withdraw">Withdraw</a>
               </Button>
             </div>
           </CardContent>
         </Card>
 
-        {/* APY & Boosts Card */}
         <Card className="bg-card border-border">
           <CardHeader>
             <h3 className="text-lg font-semibold text-foreground">Current Yield</h3>
@@ -153,16 +148,15 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
         <div className="grid grid-cols-2 gap-4">
           <Button asChild variant="outline" className="h-20 flex flex-col gap-2 border-border text-foreground hover:bg-muted bg-transparent">
-            <a href="/missions">
+            <a href="/user/missions">
               <div className="text-lg">🎯</div>
               <div className="text-sm font-medium">Missions</div>
             </a>
           </Button>
           <Button asChild variant="outline" className="h-20 flex flex-col gap-2 border-border text-foreground hover:bg-muted bg-transparent">
-            <a href="/profile">
+            <a href="/user/profile">
               <div className="text-lg">👤</div>
               <div className="text-sm font-medium">Profile</div>
             </a>
@@ -172,5 +166,7 @@ export default function Dashboard() {
     </div>
   )
 }
+
+
 
 

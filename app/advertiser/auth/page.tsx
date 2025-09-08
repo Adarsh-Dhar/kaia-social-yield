@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { useAccount, useConnect } from 'wagmi'
+import Link from "next/link"
 
 export default function AdvertiserAuthPage() {
   const router = useRouter()
@@ -73,10 +74,17 @@ export default function AdvertiserAuthPage() {
               {loading ? 'Signing in...' : (contactEmail || isConnected ? 'Sign in' : 'Enter email or connect wallet')}
             </Button>
           </form>
+          <div className="mt-4">
+            <Link href="/user" className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 w-full text-center">
+              Earn Yield
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>
   )
 }
+
+
 
 

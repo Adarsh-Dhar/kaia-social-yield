@@ -12,15 +12,19 @@ import { useAccount, useConnect, useDisconnect } from 'wagmi'
 import { Wallet, LogOut, Copy, Check } from "lucide-react"
 import { useState } from "react"
 import { toast } from "@/hooks/use-toast"
-import { useRole } from "@/hooks/use-role"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 
 export function Header() {
   const { address, isConnected } = useAccount()
   const { connect, connectors, isPending } = useConnect()
   const { disconnect } = useDisconnect()
   const [copied, setCopied] = useState(false)
-  const { role, isLoading } = useRole()
+  
+  const pathname = usePathname()
+  const isOnAdvertiserPages = pathname?.startsWith("/advertiser")
+  const isOnUserPages = pathname?.startsWith("/user")
+
 
   const formatAddress = (address: string) => {
     return `${address.slice(0, 6)}...${address.slice(-4)}`
@@ -63,27 +67,17 @@ export function Header() {
           <span className="font-semibold text-foreground">Social Yield</span>
         </div>
 
-        {/* Role-based CTA + Wallet Connection */}
+        {/* CTA + Wallet Connection */}
         <div className="flex items-center gap-3">
-          {!isLoading && (
-            role === 'user' ? (
-              <Link href="/advertiser/auth" className="hidden sm:inline-flex">
-                <Button className="h-9 px-3 bg-amber-500 hover:bg-amber-500/90 text-white">Advertise your product</Button>
-              </Link>
-            ) : role === 'advertiser' ? (
-              <Link href="/missions" className="hidden sm:inline-flex">
-                <Button variant="secondary" className="h-9 px-3">Earn yield</Button>
-              </Link>
-            ) : (
-              <>
-                <Link href="/auth" className="hidden sm:inline-flex">
-                  <Button variant="ghost" className="h-9 px-3">Become a user</Button>
-                </Link>
-                <Link href="/advertiser/auth" className="hidden sm:inline-flex">
-                  <Button className="h-9 px-3 bg-amber-500 hover:bg-amber-500/90 text-white">Become an advertiser</Button>
-                </Link>
-              </>
-            )
+          {isOnAdvertiserPages && (
+            <Button asChild variant="secondary" className="hidden sm:inline-flex h-9 px-3">
+              <Link href="/user">Earn yield</Link>
+            </Button>
+          )}
+          {isOnUserPages && (
+            <Button asChild className="hidden sm:inline-flex h-9 px-3 bg-amber-500 hover:bg-amber-500/90 text-white">
+              <Link href="/advertiser">Advertise your product</Link>
+            </Button>
           )}
 
           {isConnected ? (
