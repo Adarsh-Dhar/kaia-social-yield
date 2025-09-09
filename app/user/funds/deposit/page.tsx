@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Header } from "@/components/header"
 import { useUserData } from "@/hooks/use-user-data"
 import { ArrowLeft, CreditCard, Coins, Loader2, AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -54,7 +53,6 @@ export default function DepositPage() {
   if (userLoading) {
     return (
       <div className="min-h-screen bg-background">
-        <Header />
         <div className="p-4 max-w-md mx-auto flex items-center justify-center min-h-[calc(100vh-4rem)]">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -68,7 +66,6 @@ export default function DepositPage() {
   if (userError) {
     return (
       <div className="min-h-screen bg-background">
-        <Header />
         <div className="p-4 max-w-md mx-auto">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -83,7 +80,6 @@ export default function DepositPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
       <div className="p-4 max-w-md mx-auto space-y-6">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" asChild>
