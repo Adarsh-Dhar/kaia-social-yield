@@ -3,12 +3,12 @@
 import { createConfig, http, WagmiProvider } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { injected } from 'wagmi/connectors'
-import { anvil } from 'viem/chains'
+import { kairos } from 'viem/chains'
 
 const config = createConfig({
-  chains: [anvil],
+  chains: [kairos],
   transports: {
-    [anvil.id]: http('http://127.0.0.1:8545'),
+    [kairos.id]: http('https://public-en-kairos.node.kaia.io'),
   },
   connectors: [
     injected({
