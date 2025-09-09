@@ -8,7 +8,7 @@ import {
   type Address,
   type Hash
 } from 'viem'
-import { CAMPAIGN_ESCROW_ABI, CAMPAIGN_ESCROW_ADDRESS } from '@/lib/contracts'
+import { CAMPAIGN_ESCROW_ABI, CAMPAIGN_ESCROW_ADDRESS } from '@/lib/escrow'
 
 export interface Campaign {
   id: `0x${string}` // bytes32 as hex string

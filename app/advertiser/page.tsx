@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { useAccount, usePublicClient } from 'wagmi';
 import { useCampaignEscrowSimple } from '@/hooks/use-campaign-escrow-simple';
-import { CAMPAIGN_ESCROW_ABI } from '@/lib/contracts';
+import { CAMPAIGN_ESCROW_ABI } from '@/lib/escrow';
 import { decodeEventLog } from 'viem';
 
 type CampaignRow = {

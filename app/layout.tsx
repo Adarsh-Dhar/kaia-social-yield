@@ -12,6 +12,9 @@ export const metadata: Metadata = {
   title: "Social Yield Protocol",
   description: "Gamified DeFi savings application",
   generator: "v0.app",
+  other: {
+    "wallet-extension": "disabled"
+  }
 }
 
 export default function RootLayout({
@@ -21,6 +24,21 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              // Suppress wallet extension warnings
+              window.addEventListener('error', function(e) {
+                if (e.message && e.message.includes('wallet')) {
+                  e.preventDefault();
+                  return false;
+                }
+              });
+            `,
+          }}
+        />
+      </head>
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
         <Providers>
           <Header />

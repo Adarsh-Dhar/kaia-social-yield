@@ -6,7 +6,9 @@
     "build": "next build",
     "dev": "next dev",
     "lint": "next lint",
-    "start": "next start"
+    "start": "next start",
+    "deploy-contract": "./deploy-kairos.sh",
+    "check-contract": "node check-contract.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

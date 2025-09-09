@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useCampaignEscrow } from './use-campaign-escrow'
-import type { Campaign } from '@/lib/contracts'
+import type { Campaign } from '@/lib/escrow'
 
 export interface CampaignWithBalance extends Campaign {
   depositBalance: string

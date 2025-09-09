@@ -13,7 +13,7 @@ import {
   CampaignInactiveError,
   InvalidAmountError,
   NotOwnerError
-} from '@/lib/contracts'
+} from '@/lib/escrow'
 
 export interface UseCampaignEscrowReturn {
   // State
@@ -185,4 +185,4 @@ export {
   CampaignInactiveError,
   InvalidAmountError,
   NotOwnerError
-} from '@/lib/contracts'
+} from '@/lib/escrow'
