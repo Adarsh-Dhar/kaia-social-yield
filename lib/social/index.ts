@@ -174,6 +174,63 @@ export class SocialYieldProtocolService {
     this.walletClient = walletClient
   }
 
+  // Minimal ERC20 ABI for approvals and allowance
+  private static ERC20_ABI = [
+    { type: 'function', name: 'decimals', inputs: [], outputs: [{ name: '', type: 'uint8' }], stateMutability: 'view' },
+    { type: 'function', name: 'allowance', inputs: [
+      { name: 'owner', type: 'address' },
+      { name: 'spender', type: 'address' }
+    ], outputs: [{ name: '', type: 'uint256' }], stateMutability: 'view' },
+    { type: 'function', name: 'approve', inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'amount', type: 'uint256' }
+    ], outputs: [{ name: '', type: 'bool' }], stateMutability: 'nonpayable' }
+  ] as const
+
+  private async ensureUsdcAllowance(amount: bigint): Promise<void> {
+    if (!this.walletClient || !this.walletClient.account) {
+      throw new SocialProtocolError('Wallet client with account required for approval')
+    }
+
+    // Resolve token and spender
+    const token = await this.getUsdtTokenAddress()
+    const owner = this.walletClient.account.address as Address
+    const spender = SOCIAL_YIELD_PROTOCOL_CONFIG.address
+
+    // Check current allowance
+    let allowance: bigint
+    try {
+      allowance = await this.publicClient.readContract({
+        address: token,
+        abi: SocialYieldProtocolService.ERC20_ABI,
+        functionName: 'allowance',
+        args: [owner, spender]
+      }) as bigint
+    } catch (error) {
+      throw new SocialProtocolError('Failed to read USDC allowance', error)
+    }
+
+    if (allowance >= amount) return
+
+    // Approve a generous amount to reduce future approvals (e.g., 1e12 tokens)
+    const approveAmount = parseUnits('1000000000000', 6)
+    try {
+      await this.walletClient.writeContract({
+        address: token,
+        abi: SocialYieldProtocolService.ERC20_ABI,
+        functionName: 'approve',
+        args: [spender, approveAmount],
+        account: this.walletClient.account,
+        chain: this.publicClient.chain
+      })
+    } catch (error) {
+      if (error instanceof Error && (error.message.includes('User rejected') || error.message.includes('User denied'))) {
+        throw new SocialProtocolError('Transaction cancelled by user')
+      }
+      throw new SocialProtocolError('USDC approval failed', error)
+    }
+  }
+
   // Read functions
   async getStaker(userAddress: Address): Promise<Staker> {
     if (!isContractAddressValid(SOCIAL_YIELD_PROTOCOL_CONFIG.address)) {
@@ -320,6 +377,8 @@ export class SocialYieldProtocolService {
       if (parsedAmount > parseUnits('1000000', 6)) {
         throw new InvalidAmountError()
       }
+      // Ensure USDC allowance for protocol
+      await this.ensureUsdcAllowance(parsedAmount)
       
       const hash = await this.walletClient.writeContract({
         address: SOCIAL_YIELD_PROTOCOL_CONFIG.address,
@@ -425,6 +484,8 @@ export class SocialYieldProtocolService {
 
     try {
       const parsedBudget = parseUnits(budget, 6) // USDT has 6 decimals
+      // Ensure USDC allowance for protocol
+      await this.ensureUsdcAllowance(parsedBudget)
       
       const hash = await this.walletClient.writeContract({
         address: SOCIAL_YIELD_PROTOCOL_CONFIG.address,

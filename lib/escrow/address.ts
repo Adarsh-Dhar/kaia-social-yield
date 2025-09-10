@@ -1,3 +1,3 @@
 // Contract address - deployed to Anvil local network (31337)
 // To deploy to other networks, update the deployment script and run it
-export const ESCROW_ADDRESS = "0xCC1b61f0B34BF663d5879951bA711AFc0dC1ec92"
+export const ESCROW_ADDRESS = "0xe851842Be947a632B02720d9674446e9af5e5f10"

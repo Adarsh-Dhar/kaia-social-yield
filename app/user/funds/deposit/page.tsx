@@ -50,7 +50,7 @@ export default function DepositPage() {
     clearError()
   }, [clearError])
 
-  // Check if user has USDT tokens before staking
+  // Check if user has USDC tokens before staking
   const checkUsdtBalance = async () => {
     try {
       // This would need to be implemented to check USDT balance
@@ -66,7 +66,7 @@ export default function DepositPage() {
   const showGasWarning = () => {
     toast({
       title: "High Gas Fees Detected",
-      description: "If you see extremely high gas fees (>100 KAIA), the contract may not be properly deployed or you may not have USDT tokens.",
+      description: "If you see extremely high gas fees (>100 KAIA), the contract may not be properly deployed or you may not have USDC tokens.",
       variant: "destructive",
     })
   }
@@ -95,7 +95,7 @@ export default function DepositPage() {
       return
     }
 
-    // Validate amount is reasonable (not more than 1 million USDT)
+    // Validate amount is reasonable (not more than 1 million USDC)
     const amountNum = parseFloat(amount)
     if (amountNum > 1000000) {
       toast({
@@ -108,8 +108,8 @@ export default function DepositPage() {
 
     // Show confirmation before staking
     const confirmed = window.confirm(
-      `Are you sure you want to stake ${amount} USDT?\n\n` +
-      `This will transfer ${amount} USDT from your wallet to the staking contract.\n` +
+      `Are you sure you want to stake ${amount} USDC?\n\n` +
+      `This will transfer ${amount} USDC from your wallet to the staking contract.\n` +
       `MetaMask will open for you to approve the transaction.\n\n` +
       `⚠️ IMPORTANT: If you see gas fees > 100 KAIA, DO NOT approve the transaction!\n` +
       `This indicates a contract configuration issue.`
@@ -132,7 +132,7 @@ export default function DepositPage() {
       if (txHash) {
         toast({
           title: "Stake Successful",
-          description: `Successfully staked ${amount} USDT. Transaction: ${txHash.slice(0, 10)}...`,
+          description: `Successfully staked ${amount} USDC. Transaction: ${txHash.slice(0, 10)}...`,
         })
         setAmount("")
         await loadData() // Refresh data
@@ -140,16 +140,16 @@ export default function DepositPage() {
     } catch (error) {
       console.error('Staking error:', error)
       
-      let errorMessage = "Failed to stake USDT"
+      let errorMessage = "Failed to stake USDC"
       if (error instanceof Error) {
         if (error.message.includes('Transaction cancelled by user') || error.message.includes('User rejected') || error.message.includes('User denied')) {
           errorMessage = "Transaction cancelled. Please try again when you're ready to stake."
         } else if (error.message.includes('Contract not deployed')) {
           errorMessage = "Contract not deployed. Please deploy the Social Yield Protocol contract to Kairos."
         } else if (error.message.includes('Insufficient funds')) {
-          errorMessage = "Insufficient USDT balance. Please ensure you have enough USDT tokens."
-        } else if (error.message.includes('USDT transfer failed')) {
-          errorMessage = "USDT transfer failed. Please check your USDT balance and approve the contract."
+          errorMessage = "Insufficient USDC balance. Please ensure you have enough USDC tokens."
+        } else if (error.message.includes('USDT transfer failed') || error.message.includes('USDC transfer failed')) {
+          errorMessage = "USDC transfer failed. Please check your USDC balance and approve the contract."
         } else if (error.message.includes('gas')) {
           errorMessage = "Transaction failed due to gas issues. Please try again."
         } else {
@@ -229,7 +229,7 @@ export default function DepositPage() {
             <Wallet className="h-12 w-12 mx-auto text-muted-foreground" />
             <div>
               <h2 className="text-xl font-semibold text-foreground">Wallet Not Connected</h2>
-              <p className="text-muted-foreground">Please connect your wallet to stake USDT</p>
+              <p className="text-muted-foreground">Please connect your wallet to stake USDC</p>
             </div>
           </div>
         </div>
@@ -248,7 +248,7 @@ export default function DepositPage() {
                 <ArrowLeft className="h-4 w-4" />
               </a>
             </Button>
-            <h1 className="text-2xl font-bold text-foreground">Stake USDT</h1>
+            <h1 className="text-2xl font-bold text-foreground">Stake USDC</h1>
           </div>
 
           <Card className="bg-card border-border">
@@ -260,12 +260,12 @@ export default function DepositPage() {
                   <p className="text-muted-foreground">The Social Yield Protocol contract needs to be deployed to Kairos</p>
                 </div>
                 <div className="text-left space-y-2 p-4 bg-muted rounded-lg">
-                  <h3 className="font-medium text-foreground">To deploy the contract:</h3>
+                  <h3 className="font-medium text-foreground">To deploy the contracts:</h3>
                   <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
                     <li>Open a terminal in the project root</li>
                     <li>Run: <code className="bg-background px-1 rounded">cd contracts</code></li>
                     <li>Run: <code className="bg-background px-1 rounded">forge script script/Deploy.s.sol --rpc-url https://public-en-kairos.node.kaia.io --broadcast</code></li>
-                    <li>Update the contract address in <code className="bg-background px-1 rounded">lib/social/address.ts</code></li>
+                    <li>Update the protocol address in <code className="bg-background px-1 rounded">lib/social/address.ts</code></li>
                     <li>Refresh this page</li>
                   </ol>
                 </div>
@@ -289,7 +289,7 @@ export default function DepositPage() {
               <ArrowLeft className="h-4 w-4" />
             </a>
           </Button>
-          <h1 className="text-2xl font-bold text-foreground">Stake USDT</h1>
+          <h1 className="text-2xl font-bold text-foreground">Stake USDC</h1>
         </div>
 
         {/* Error Alert */}
@@ -312,13 +312,13 @@ export default function DepositPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-foreground">
-                  {formattedAmountStaked} USDT
+                  {formattedAmountStaked} USDC
                 </div>
                 <p className="text-sm text-muted-foreground">Staked Amount</p>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-foreground">
-                  {formattedRewards} USDT
+                  {formattedRewards} USDC
                 </div>
                 <p className="text-sm text-muted-foreground">Pending Rewards</p>
               </div>
@@ -363,7 +363,7 @@ export default function DepositPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center">
                 <div className="text-xl font-bold text-foreground">
-                  {formattedTotalStaked} USDT
+                  {formattedTotalStaked} USDC
                 </div>
                 <p className="text-sm text-muted-foreground">Total Staked</p>
               </div>
@@ -384,7 +384,7 @@ export default function DepositPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="amount" className="text-foreground">Amount (USDT)</Label>
+              <Label htmlFor="amount" className="text-foreground">Amount (USDC)</Label>
               <Input
                 id="amount"
                 type="number"
@@ -396,7 +396,7 @@ export default function DepositPage() {
                 min="0"
               />
               <p className="text-xs text-muted-foreground">
-                ⚠️ You need USDT tokens in your wallet to stake. When MetaMask opens, you'll need to approve the transaction to stake your USDT.
+                ⚠️ You need USDC tokens in your wallet to stake. When MetaMask opens, you'll first approve the protocol to spend USDC, then confirm the stake.
               </p>
               <div className="flex gap-2 mt-2">
                 <Button
@@ -427,7 +427,7 @@ export default function DepositPage() {
                 {isStaking ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Staking...</>
                 ) : (
-                  <>Stake USDT</>
+                  <>Stake USDC</>
                 )}
                 </Button>
 
@@ -452,7 +452,7 @@ export default function DepositPage() {
             <div className="space-y-2 text-sm">
               <h4 className="font-medium text-foreground">How it works:</h4>
               <ul className="space-y-1 text-muted-foreground">
-                <li>• Stake USDT to earn {formattedBaseApy} base APY</li>
+                <li>• Stake USDC to earn {formattedBaseApy} base APY</li>
                 <li>• Complete missions to get yield boosts</li>
                 <li>• Withdraw your stake anytime</li>
                 <li>• Claim rewards when available</li>

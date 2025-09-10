@@ -67,7 +67,7 @@ export default function WithdrawPage() {
       if (txHash) {
       toast({
           title: "Withdrawal Successful",
-          description: `Successfully withdrew ${amount} USDT. Transaction: ${txHash.slice(0, 10)}...`,
+          description: `Successfully withdrew ${amount} USDC. Transaction: ${txHash.slice(0, 10)}...`,
       })
       setAmount("")
         await loadData() // Refresh data
@@ -75,7 +75,7 @@ export default function WithdrawPage() {
     } catch (error) {
       toast({
         title: "Withdrawal Failed",
-        description: error instanceof Error ? error.message : "Failed to withdraw USDT",
+        description: error instanceof Error ? error.message : "Failed to withdraw USDC",
         variant: "destructive",
       })
     } finally {
@@ -114,7 +114,7 @@ export default function WithdrawPage() {
                 <ArrowLeft className="h-4 w-4" />
               </a>
             </Button>
-            <h1 className="text-2xl font-bold text-foreground">Withdraw USDT</h1>
+            <h1 className="text-2xl font-bold text-foreground">Withdraw USDC</h1>
           </div>
 
           <Card className="bg-card border-border">
@@ -126,12 +126,12 @@ export default function WithdrawPage() {
                   <p className="text-muted-foreground">The Social Yield Protocol contract needs to be deployed to Kairos</p>
                 </div>
                 <div className="text-left space-y-2 p-4 bg-muted rounded-lg">
-                  <h3 className="font-medium text-foreground">To deploy the contract:</h3>
+                  <h3 className="font-medium text-foreground">To deploy the contracts:</h3>
                   <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
                     <li>Open a terminal in the project root</li>
                     <li>Run: <code className="bg-background px-1 rounded">cd contracts</code></li>
                     <li>Run: <code className="bg-background px-1 rounded">forge script script/Deploy.s.sol --rpc-url https://public-en-kairos.node.kaia.io --broadcast</code></li>
-                    <li>Update the contract address in <code className="bg-background px-1 rounded">lib/social/address.ts</code></li>
+                    <li>Update the protocol address in <code className="bg-background px-1 rounded">lib/social/address.ts</code></li>
                     <li>Refresh this page</li>
                   </ol>
                 </div>
@@ -156,7 +156,7 @@ export default function WithdrawPage() {
                 <ArrowLeft className="h-4 w-4" />
               </a>
             </Button>
-            <h1 className="text-2xl font-bold text-foreground">Withdraw USDT</h1>
+            <h1 className="text-2xl font-bold text-foreground">Withdraw USDC</h1>
           </div>
 
           <Card className="bg-card border-border">
@@ -206,7 +206,7 @@ export default function WithdrawPage() {
           <CardContent>
             <div className="text-center">
               <div className="text-3xl font-bold text-foreground mb-1">
-                {formattedAmountStaked} USDT
+                {formattedAmountStaked} USDC
               </div>
               <p className="text-sm text-muted-foreground">Available for withdrawal</p>
             </div>
@@ -220,7 +220,7 @@ export default function WithdrawPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="amount" className="text-foreground">Amount (USDT)</Label>
+              <Label htmlFor="amount" className="text-foreground">Amount (USDC)</Label>
               <div className="relative">
                 <Input
                   id="amount"
@@ -244,8 +244,8 @@ export default function WithdrawPage() {
                 </Button>
               </div>
               <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Min: 0.01 USDT</span>
-                <span>Max: {availableBalance.toFixed(2)} USDT</span>
+                <span>Min: 0.01 USDC</span>
+                <span>Max: {availableBalance.toFixed(2)} USDC</span>
               </div>
             </div>
 
@@ -262,7 +262,7 @@ export default function WithdrawPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Token:</span>
-                  <span className="text-foreground">USDT</span>
+                  <span className="text-foreground">USDC</span>
                 </div>
                 <div className="space-y-1">
                   <span className="text-muted-foreground">Address:</span>
@@ -279,7 +279,7 @@ export default function WithdrawPage() {
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Amount:</span>
-                  <span className="text-foreground">{amount || "0"} USDT</span>
+                  <span className="text-foreground">{amount || "0"} USDC</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Network Fee:</span>
@@ -287,7 +287,7 @@ export default function WithdrawPage() {
                 </div>
                 <div className="flex justify-between font-medium">
                   <span className="text-foreground">You'll receive:</span>
-                  <span className="text-foreground">{amount || "0"} USDT</span>
+                  <span className="text-foreground">{amount || "0"} USDC</span>
                 </div>
               </div>
             </div>
@@ -300,7 +300,7 @@ export default function WithdrawPage() {
               {isWithdrawing ? (
                 <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Withdrawing...</>
               ) : (
-                <>Withdraw {amount || "0"} USDT</>
+                <>Withdraw {amount || "0"} USDC</>
               )}
             </Button>
           </CardContent>
