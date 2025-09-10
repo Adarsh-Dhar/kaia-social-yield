@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label"
 import { ArrowLeft, TrendingUp, Wallet, Loader2, AlertCircle, CheckCircle, Zap } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "@/hooks/use-toast"
+import { erc20Abi, formatUnits } from "viem"
+import { createClients, getUsdtTokenAddress } from "@/lib/social"
 
 export default function DepositPage() {
   const { address, isConnected } = useAccount()
@@ -122,6 +124,22 @@ export default function DepositPage() {
     }
 
     setIsStaking(true)
+    const holder = address as `0x${string}`
+    let preBalance: bigint | null = null
+    try {
+      const { publicClient } = await createClients()
+      const tokenAddress = await getUsdtTokenAddress()
+      console.log(`[Token] Using token @ ${tokenAddress}`)
+      preBalance = await publicClient.readContract({
+        address: tokenAddress,
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: [holder]
+      }) as bigint
+      console.log(`[Stake] Balance BEFORE for ${holder}: ${formatUnits(preBalance, 6)} USDC`)
+    } catch (e) {
+      console.warn("[Stake] Failed to read pre-balance:", e)
+    }
     
     // Show helpful loading message
     toast({
@@ -138,6 +156,24 @@ export default function DepositPage() {
         })
         setAmount("")
         await loadData() // Refresh data
+        try {
+          const { publicClient } = await createClients()
+          const tokenAddress = await getUsdtTokenAddress()
+          console.log(`[Token] Using token @ ${tokenAddress}`)
+          const postBalance = await publicClient.readContract({
+            address: tokenAddress,
+            abi: erc20Abi,
+            functionName: "balanceOf",
+            args: [holder]
+          }) as bigint
+          console.log(`[Stake] Balance AFTER for ${holder}: ${formatUnits(postBalance, 6)} USDC`)
+          if (preBalance !== null) {
+            const delta = (postBalance - preBalance)
+            console.log(`[Stake] Balance DELTA for ${holder}: ${formatUnits(delta, 6)} USDC`)
+          }
+        } catch (e) {
+          console.warn("[Stake] Failed to read post-balance:", e)
+        }
       }
     } catch (error) {
       console.error('Staking error:', error)
@@ -189,6 +225,22 @@ export default function DepositPage() {
     }
 
     setIsWithdrawing(true)
+    const holder = address as `0x${string}`
+    let preBalance: bigint | null = null
+    try {
+      const { publicClient } = await createClients()
+      const tokenAddress = await getUsdtTokenAddress()
+      console.log(`[Token] Using token @ ${tokenAddress}`)
+      preBalance = await publicClient.readContract({
+        address: tokenAddress,
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: [holder]
+      }) as bigint
+      console.log(`[Withdraw] Balance BEFORE for ${holder}: ${formatUnits(preBalance, 6)} USDC`)
+    } catch (e) {
+      console.warn("[Withdraw] Failed to read pre-balance:", e)
+    }
     try {
       const txHash = await withdraw(amount)
       if (txHash) {
@@ -198,6 +250,24 @@ export default function DepositPage() {
       })
       setAmount("")
         await loadData() // Refresh data
+        try {
+          const { publicClient } = await createClients()
+          const tokenAddress = await getUsdtTokenAddress()
+          console.log(`[Token] Using token @ ${tokenAddress}`)
+          const postBalance = await publicClient.readContract({
+            address: tokenAddress,
+            abi: erc20Abi,
+            functionName: "balanceOf",
+            args: [holder]
+          }) as bigint
+          console.log(`[Withdraw] Balance AFTER for ${holder}: ${formatUnits(postBalance, 6)} USDC`)
+          if (preBalance !== null) {
+            const delta = (postBalance - preBalance)
+            console.log(`[Withdraw] Balance DELTA for ${holder}: ${formatUnits(delta, 6)} USDC`)
+          }
+        } catch (e) {
+          console.warn("[Withdraw] Failed to read post-balance:", e)
+        }
       }
     } catch (error) {
       toast({

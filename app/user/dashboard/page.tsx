@@ -124,10 +124,10 @@ function DashboardContent() {
 
             <div className="flex gap-3">
               <Button asChild className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground">
-                <a href="/user/funds/deposit">Stake</a>
+                <a href="/user/funds">Stake</a>
               </Button>
               <Button asChild variant="outline" className="flex-1 border-border text-foreground hover:bg-muted bg-transparent">
-                <a href="/user/funds/withdraw">Withdraw</a>
+                <a href="/user/funds">Withdraw</a>
               </Button>
             </div>
           </CardContent>
