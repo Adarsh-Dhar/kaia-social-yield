@@ -46,6 +46,11 @@ model Campaign {
   missionId          String        @unique
   updatedAt          DateTime      @default(now()) @updatedAt
   contractCampaignId String?
+  // CampaignManager contract fields
+  maxParticipants    Int           @default(100)
+  minReward          Float         @default(1.0)
+  maxReward          Float         @default(50.0)
+  nftTokenURI        String?       @default("https://example.com/nft-metadata.json")
   activeBoosts       ActiveBoost[]
   advertiser         Advertiser    @relation(fields: [advertiserId], references: [id])
   mission            Mission       @relation(fields: [missionId], references: [id])

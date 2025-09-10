@@ -25,7 +25,19 @@ export async function POST(req: NextRequest) {
   const auth = requireAdvertiser(req);
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const { name, description, budget, startDate, endDate, mission, contractCampaignId } = await req.json();
+    const { 
+      name, 
+      description, 
+      budget, 
+      startDate, 
+      endDate, 
+      mission, 
+      contractCampaignId,
+      maxParticipants,
+      minReward,
+      maxReward,
+      nftTokenURI
+    } = await req.json();
     if (!name || !description || !budget || !startDate || !endDate || !mission) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
@@ -58,6 +70,10 @@ export async function POST(req: NextRequest) {
         startDate: new Date(startDate),
         endDate: new Date(endDate),
         contractCampaignId, // Store the contract campaign ID
+        maxParticipants: Number(maxParticipants) || 100,
+        minReward: Number(minReward) || 1.0,
+        maxReward: Number(maxReward) || 50.0,
+        nftTokenURI: nftTokenURI || "https://example.com/nft-metadata.json",
         advertiser: { connect: { id: auth.advertiserId } },
         mission: { connect: { id: createdMission.id } },
       },
@@ -93,6 +109,11 @@ export async function GET(req: NextRequest) {
         budget: c.budget,
         remainingBudget: c.remainingBudget,
         period: { startDate: c.startDate.toISOString(), endDate: c.endDate.toISOString() },
+        // CampaignManager contract fields
+        maxParticipants: c.maxParticipants,
+        minReward: c.minReward,
+        maxReward: c.maxReward,
+        nftTokenURI: c.nftTokenURI,
         mission: {
           id: c.mission.id,
           title: c.mission.title,

@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Test, console} from "../lib/forge-std/src/Test.sol";
+import {Test} from "../lib/forge-std/src/Test.sol";
 import {CampaignEscrow} from "../src/CampaignEscrow.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 contract CampaignEscrowTest is Test {
     CampaignEscrow public escrow;
@@ -25,50 +26,58 @@ contract CampaignEscrowTest is Test {
     // --- Test Deposit ---
 
     function test_DepositFunds() public {
-        // Arrange: Give the depositor some Ether
-        vm.deal(depositor, DEPOSIT_AMOUNT);
-
-        // Act: Depositor sends funds to the contract for a campaign
+        // Arrange: Create a campaign first and give the depositor some Ether
+        vm.deal(depositor, DEPOSIT_AMOUNT * 2); // Extra for campaign creation
         vm.prank(depositor);
-        escrow.deposit{value: DEPOSIT_AMOUNT}(CAMPAIGN_ID);
+        bytes32 campaignId = escrow.createCampaign{value: DEPOSIT_AMOUNT}(DEPOSIT_AMOUNT);
+
+        // Act: Depositor sends additional funds to the contract for the campaign
+        vm.prank(depositor);
+        escrow.deposit{value: DEPOSIT_AMOUNT}(campaignId);
 
         // Assert: Check if the contract's balance and mapping are correct
-        assertEq(escrow.deposits(CAMPAIGN_ID), DEPOSIT_AMOUNT, "Deposit mapping should be updated.");
-        assertEq(address(escrow).balance, DEPOSIT_AMOUNT, "Contract balance should be updated.");
+        assertEq(escrow.deposits(campaignId), DEPOSIT_AMOUNT * 2, "Deposit mapping should be updated.");
+        assertEq(address(escrow).balance, DEPOSIT_AMOUNT * 2, "Contract balance should be updated.");
     }
 
     // --- Test Release Funds ---
 
     function test_ReleaseFunds() public {
-        // Arrange: Deposit funds first
-        vm.deal(depositor, DEPOSIT_AMOUNT);
+        // Arrange: Create a campaign and deposit funds first
+        vm.deal(depositor, DEPOSIT_AMOUNT * 2);
         vm.prank(depositor);
-        escrow.deposit{value: DEPOSIT_AMOUNT}(CAMPAIGN_ID);
+        bytes32 campaignId = escrow.createCampaign{value: DEPOSIT_AMOUNT}(DEPOSIT_AMOUNT);
+        
+        vm.prank(depositor);
+        escrow.deposit{value: DEPOSIT_AMOUNT}(campaignId);
 
         uint256 recipientInitialBalance = recipient.balance;
 
         // Act: Owner releases the funds
         // Note: `vm.prank` is not needed here as `owner` is `address(this)`
-        escrow.releaseFunds(CAMPAIGN_ID, recipient);
+        escrow.releaseFunds(campaignId, recipient);
 
         // Assert: Check balances and state changes
-        assertEq(recipient.balance, recipientInitialBalance + DEPOSIT_AMOUNT, "Recipient should receive the funds.");
-        assertEq(escrow.deposits(CAMPAIGN_ID), 0, "Campaign deposit should be cleared.");
+        assertEq(recipient.balance, recipientInitialBalance + DEPOSIT_AMOUNT * 2, "Recipient should receive the funds.");
+        assertEq(escrow.deposits(campaignId), 0, "Campaign deposit should be cleared.");
         assertEq(address(escrow).balance, 0, "Contract balance should be zero after release.");
     }
 
     // --- Test Failure Cases (Reverts) ---
 
     function test_Fail_ReleaseFunds_NotOwner() public {
-        // Arrange: Deposit funds
-        vm.deal(depositor, DEPOSIT_AMOUNT);
+        // Arrange: Create a campaign and deposit funds
+        vm.deal(depositor, DEPOSIT_AMOUNT * 2);
         vm.prank(depositor);
-        escrow.deposit{value: DEPOSIT_AMOUNT}(CAMPAIGN_ID);
+        bytes32 campaignId = escrow.createCampaign{value: DEPOSIT_AMOUNT}(DEPOSIT_AMOUNT);
+        
+        vm.prank(depositor);
+        escrow.deposit{value: DEPOSIT_AMOUNT}(campaignId);
 
         // Act & Assert: Expect revert because a non-owner is calling
         vm.prank(depositor); // A non-owner
-        vm.expectRevert(CampaignEscrow.NotOwner.selector);
-        escrow.releaseFunds(CAMPAIGN_ID, recipient);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, depositor));
+        escrow.releaseFunds(campaignId, recipient);
     }
 
     function test_Fail_ReleaseFunds_NoFunds() public {

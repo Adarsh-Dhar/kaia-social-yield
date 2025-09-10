@@ -43,6 +43,11 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       budget: campaign.budget,
       remainingBudget: campaign.remainingBudget,
       period: { startDate: campaign.startDate.toISOString(), endDate: campaign.endDate.toISOString() },
+      // CampaignManager contract fields
+      maxParticipants: campaign.maxParticipants,
+      minReward: campaign.minReward,
+      maxReward: campaign.maxReward,
+      nftTokenURI: campaign.nftTokenURI,
       mission: {
         id: campaign.mission.id,
         title: campaign.mission.title,
@@ -104,6 +109,11 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         remainingBudget: body.budget != null ? Number(body.budget) : existing.remainingBudget,
         startDate: body.startDate ? new Date(body.startDate) : existing.startDate,
         endDate: body.endDate ? new Date(body.endDate) : existing.endDate,
+        // CampaignManager contract fields
+        maxParticipants: body.maxParticipants != null ? Number(body.maxParticipants) : existing.maxParticipants,
+        minReward: body.minReward != null ? Number(body.minReward) : existing.minReward,
+        maxReward: body.maxReward != null ? Number(body.maxReward) : existing.maxReward,
+        nftTokenURI: body.nftTokenURI ?? existing.nftTokenURI,
       },
     });
 

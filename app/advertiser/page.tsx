@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { useAccount, usePublicClient } from 'wagmi';
-import { useCampaignEscrowSimple } from '@/hooks/use-campaign-escrow-simple';
-import { CAMPAIGN_ESCROW_ABI } from '@/lib/escrow';
-import { decodeEventLog } from 'viem';
+import { useCampaignManager } from '@/hooks/use-campaign-manager';
+import { CAMPAIGN_MANAGER_ABI_EXPORT as CAMPAIGN_MANAGER_ABI } from '@/lib/campaign_manager/index';
+import { decodeEventLog, erc20Abi, formatUnits } from 'viem';
+import { createClients } from "@/lib/campaign_manager";
 
 type CampaignRow = {
   id: string;
@@ -21,6 +22,11 @@ type CampaignRow = {
   remainingBudget: number;
   description: string;
   period: { startDate: string; endDate: string };
+  // CampaignManager contract fields
+  maxParticipants: number;
+  minReward: number;
+  maxReward: number;
+  nftTokenURI: string;
   mission: {
     id: string;
     title: string;
@@ -64,11 +70,46 @@ export default function AdvertiserHome() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [usdtBalance, setUsdtBalance] = useState<string>("0");
+  const [balanceLoading, setBalanceLoading] = useState(false);
   
   // Wallet and contract integration
   const { address, isConnected } = useAccount();
-  const { createCampaign, isLoading: contractLoading, error: contractError, clearError } = useCampaignEscrowSimple();
+  const { createCampaign, isLoading: contractLoading, error: contractError, clearError } = useCampaignManager();
   const publicClient = usePublicClient();
+
+  // USDT Token Address - deployed on Kairos testnet
+  const USDT_TOKEN_ADDRESS = "0x3e07f227F06DCF931DdE90d3B59EE3612632d58F" as `0x${string}`;
+
+  // Function to get USDT token address
+  const getUsdtTokenAddress = useCallback((): `0x${string}` => {
+    return USDT_TOKEN_ADDRESS;
+  }, []);
+
+  // Function to get USDT balance for connected wallet
+  const getUsdtBalance = useCallback(async (walletAddress: `0x${string}`) => {
+    if (!publicClient) return "0";
+    
+    try {
+      setBalanceLoading(true);
+      const balance = await publicClient.readContract({
+        address: USDT_TOKEN_ADDRESS,
+        abi: erc20Abi,
+        functionName: "balanceOf",
+        args: [walletAddress]
+      }) as bigint;
+      
+      const formattedBalance = formatUnits(balance, 6); // USDT has 6 decimals
+      setUsdtBalance(formattedBalance);
+      return formattedBalance;
+    } catch (error) {
+      console.error("Failed to get USDT balance:", error);
+      setUsdtBalance("0");
+      return "0";
+    } finally {
+      setBalanceLoading(false);
+    }
+  }, [publicClient]);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -84,6 +125,11 @@ export default function AdvertiserHome() {
   const [boostMultiplier, setBoostMultiplier] = useState("1.0");
   const [boostDuration, setBoostDuration] = useState("24");
   const [targetCompletions, setTargetCompletions] = useState("100");
+  // CampaignManager contract fields
+  const [maxParticipants, setMaxParticipants] = useState("100");
+  const [minReward, setMinReward] = useState("1.0");
+  const [maxReward, setMaxReward] = useState("50.0");
+  const [nftTokenURI, setNftTokenURI] = useState("https://example.com/nft-metadata.json");
   const [startOpen, setStartOpen] = useState(false);
   const [endOpen, setEndOpen] = useState(false);
 
@@ -107,6 +153,15 @@ export default function AdvertiserHome() {
       mounted = false;
     };
   }, []);
+
+  // Load USDT balance when wallet connects
+  useEffect(() => {
+    if (isConnected && address && publicClient) {
+      getUsdtBalance(address as `0x${string}`);
+    } else {
+      setUsdtBalance("0");
+    }
+  }, [isConnected, address, publicClient, getUsdtBalance]);
 
   // Clear contract error when component mounts or when dialog opens
   useEffect(() => {
@@ -174,6 +229,11 @@ export default function AdvertiserHome() {
     setBoostMultiplier("1.0");
     setBoostDuration("24");
     setTargetCompletions("100");
+    // CampaignManager contract fields
+    setMaxParticipants("100");
+    setMinReward("1.0");
+    setMaxReward("50.0");
+    setNftTokenURI("https://example.com/nft-metadata.json");
     setFormError(null);
     setEditingId(null);
   }, []);
@@ -190,7 +250,7 @@ export default function AdvertiserHome() {
       }
 
       // Check if wallet is connected to the correct network
-      // The contract is deployed to Kairos testnet
+      // The CampaignManager contract is deployed to Kairos testnet
       console.log('Current network:', publicClient?.chain?.name || 'Unknown');
       console.log('Expected network: Kairos Testnet (1001)');
 
@@ -198,6 +258,25 @@ export default function AdvertiserHome() {
       
       // Only create contract campaign for new campaigns (not edits)
       if (!editingId) {
+        // Check USDT balance before creating campaign
+        const holder = address as `0x${string}`;
+        let preBalance: bigint | null = null;
+        try {
+          const tokenAddress = getUsdtTokenAddress();
+          console.log(`[Campaign] Using USDT token @ ${tokenAddress}`);
+          if (publicClient) {
+            preBalance = await publicClient.readContract({
+              address: tokenAddress,
+              abi: erc20Abi,
+              functionName: "balanceOf",
+              args: [holder]
+            }) as bigint;
+            console.log(`[Campaign] USDT Balance BEFORE for ${holder}: ${formatUnits(preBalance, 6)} USDT`);
+          }
+        } catch (e) {
+          console.warn("[Campaign] Failed to read pre-balance:", e);
+        }
+
         // Create campaign on contract first
         console.log('Creating campaign on contract with budget:', budget);
         console.log('Wallet connected:', isConnected);
@@ -205,7 +284,13 @@ export default function AdvertiserHome() {
         console.log('Contract loading:', contractLoading);
         console.log('Contract error:', contractError);
         
-        const txHash = await createCampaign(budget);
+        const txHash = await createCampaign(
+          budget,
+          maxParticipants,
+          minReward,
+          maxReward,
+          nftTokenURI
+        );
         console.log('Transaction hash received:', txHash);
         
         if (!txHash) {
@@ -237,14 +322,13 @@ export default function AdvertiserHome() {
         }
         
         // Extract campaign ID from transaction logs (if receipt is available)
-        // The contract emits CampaignCreated(campaignId, msg.sender, initialFunding)
+        // The contract emits CampaignCreated(campaignId, creator, budget, maxParticipants, minReward, maxReward)
         let campaignCreatedLog = null;
         if (receipt && receipt.logs) {
-          const escrowAddressLc = (CAMPAIGN_ESCROW_ABI as any) ? (undefined) : undefined; // noop to keep import used
           campaignCreatedLog = receipt.logs.find((log: any) => {
             try {
               const decoded = decodeEventLog({
-                abi: CAMPAIGN_ESCROW_ABI,
+                abi: CAMPAIGN_MANAGER_ABI,
                 data: log.data,
                 topics: log.topics,
                 eventName: 'CampaignCreated',
@@ -258,7 +342,7 @@ export default function AdvertiserHome() {
           if (campaignCreatedLog) {
             try {
               const decoded = decodeEventLog({
-                abi: CAMPAIGN_ESCROW_ABI,
+                abi: CAMPAIGN_MANAGER_ABI,
                 data: campaignCreatedLog.data,
                 topics: campaignCreatedLog.topics,
                 eventName: 'CampaignCreated',
@@ -280,6 +364,28 @@ export default function AdvertiserHome() {
           console.log('No receipt available, generating fallback campaign ID for local development');
           contractCampaignId = `0x${txHash.slice(2, 66).padEnd(64, '0')}` as `0x${string}`;
         }
+
+        // Log USDT balance after campaign creation
+        try {
+          const tokenAddress = getUsdtTokenAddress();
+          if (publicClient) {
+            const postBalance = await publicClient.readContract({
+              address: tokenAddress,
+              abi: erc20Abi,
+              functionName: "balanceOf",
+              args: [holder]
+            }) as bigint;
+            console.log(`[Campaign] USDT Balance AFTER for ${holder}: ${formatUnits(postBalance, 6)} USDT`);
+            if (preBalance !== null) {
+              const delta = (postBalance - preBalance);
+              console.log(`[Campaign] USDT Balance DELTA for ${holder}: ${formatUnits(delta, 6)} USDT`);
+            }
+            // Update the displayed balance
+            setUsdtBalance(formatUnits(postBalance, 6));
+          }
+        } catch (e) {
+          console.warn("[Campaign] Failed to read post-balance:", e);
+        }
       }
 
       const payload = {
@@ -289,6 +395,11 @@ export default function AdvertiserHome() {
         startDate,
         endDate,
         contractCampaignId, // Include the contract campaign ID
+        // CampaignManager contract fields
+        maxParticipants: Number(maxParticipants || 100),
+        minReward: Number(minReward || 1.0),
+        maxReward: Number(maxReward || 50.0),
+        nftTokenURI: nftTokenURI || "https://example.com/nft-metadata.json",
         mission: {
           title: missionTitle,
           description: missionDescription,
@@ -318,7 +429,7 @@ export default function AdvertiserHome() {
     } finally {
       setSubmitting(false);
     }
-  }, [isConnected, address, createCampaign, publicClient, budget, name, description, startDate, endDate, missionTitle, missionDescription, boostMultiplier, boostDuration, targetCompletions, editingId, resetForm]);
+  }, [isConnected, address, createCampaign, publicClient, budget, name, description, startDate, endDate, missionTitle, missionDescription, boostMultiplier, boostDuration, targetCompletions, maxParticipants, minReward, maxReward, nftTokenURI, editingId, resetForm, getUsdtTokenAddress]);
 
   const openEdit = useCallback((row: CampaignRow) => {
     setEditingId(row.id);
@@ -333,6 +444,11 @@ export default function AdvertiserHome() {
     setBoostMultiplier(String(row.mission.boostMultiplier));
     setBoostDuration(String(row.mission.boostDuration));
     setTargetCompletions(String(row.mission.targetCompletions));
+    // CampaignManager contract fields
+    setMaxParticipants(String(row.maxParticipants));
+    setMinReward(String(row.minReward));
+    setMaxReward(String(row.maxReward));
+    setNftTokenURI(row.nftTokenURI ?? "https://example.com/nft-metadata.json");
   }, []);
 
   return (
@@ -346,7 +462,7 @@ export default function AdvertiserHome() {
           <DialogTrigger asChild>
             <Button onClick={() => { setEditingId(null); resetForm(); }}>New Campaign</Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]" key={editingId || 'new'}>
+          <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto" key={editingId || 'new'}>
             <DialogHeader>
               <DialogTitle>{editingId ? "Edit campaign" : "Create a new campaign"}</DialogTitle>
               <DialogDescription>
@@ -451,6 +567,59 @@ export default function AdvertiserHome() {
                 </div>
               </div>
 
+              <div className="rounded-md border p-3 space-y-3">
+                <div className="text-sm font-medium">Campaign Rewards (USDT)</div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="maxParticipants">Max Participants</Label>
+                    <Input 
+                      id="maxParticipants" 
+                      type="number" 
+                      step="1" 
+                      min="1" 
+                      value={maxParticipants} 
+                      onChange={(e) => setMaxParticipants(e.target.value)} 
+                      required 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="minReward">Min Reward (USDT)</Label>
+                    <Input 
+                      id="minReward" 
+                      type="number" 
+                      step="0.01" 
+                      min="0.01" 
+                      value={minReward} 
+                      onChange={(e) => setMinReward(e.target.value)} 
+                      required 
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="maxReward">Max Reward (USDT)</Label>
+                    <Input 
+                      id="maxReward" 
+                      type="number" 
+                      step="0.01" 
+                      min="0.01" 
+                      value={maxReward} 
+                      onChange={(e) => setMaxReward(e.target.value)} 
+                      required 
+                    />
+                  </div>
+                  <div className="sm:col-span-3 space-y-2">
+                    <Label htmlFor="nftTokenURI">NFT Metadata URI</Label>
+                    <Input 
+                      id="nftTokenURI" 
+                      type="url" 
+                      value={nftTokenURI} 
+                      onChange={(e) => setNftTokenURI(e.target.value)} 
+                      placeholder="https://example.com/nft-metadata.json"
+                      required 
+                    />
+                  </div>
+                </div>
+              </div>
+
               {!isConnected && (
                 <div className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/20 p-3 rounded-md">
                   Please connect your wallet to create a campaign
@@ -459,11 +628,21 @@ export default function AdvertiserHome() {
               
               {isConnected && publicClient && (
                 <div className="text-sm text-blue-600 bg-blue-50 dark:bg-blue-950/20 p-3 rounded-md">
-                  Connected to: {publicClient.chain?.name} (Chain ID: {publicClient.chain?.id})
-                  <br />
-                  <span className="text-xs text-gray-600">
-                    Expected: Kairos Testnet (1001)
-                  </span>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      Connected to: {publicClient.chain?.name} (Chain ID: {publicClient.chain?.id})
+                      <br />
+                      <span className="text-xs text-gray-600">
+                        Expected: Kairos Testnet (1001) - CampaignManager Contract
+                      </span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-semibold">
+                        {balanceLoading ? "Loading..." : `${usdtBalance} USDT`}
+                      </div>
+                      <div className="text-xs text-gray-600">Wallet Balance</div>
+                    </div>
+                  </div>
                 </div>
               )}
               
@@ -501,8 +680,9 @@ export default function AdvertiserHome() {
                 <th className="text-left font-medium px-4 py-3">Status</th>
                 <th className="text-left font-medium px-4 py-3">Completions</th>
                 <th className="text-left font-medium px-4 py-3">Budget (USDT)</th>
+                <th className="text-left font-medium px-4 py-3">Reward Range</th>
+                <th className="text-left font-medium px-4 py-3">Max Participants</th>
                 <th className="text-left font-medium px-4 py-3">Mission Type</th>
-                <th className="text-left font-medium px-4 py-3">Reward</th>
                 <th className="text-left font-medium px-4 py-3">Timeline</th>
                 <th className="text-right font-medium px-4 py-3">Actions</th>
               </tr>
@@ -516,8 +696,9 @@ export default function AdvertiserHome() {
                     <td className="px-4 py-3 whitespace-nowrap">{s.icon} {s.label}</td>
                     <td className="px-4 py-3 whitespace-nowrap">{r.mission.completions} / {r.mission.targetCompletions}</td>
                     <td className="px-4 py-3 whitespace-nowrap">{Math.max(0, Math.round(r.remainingBudget))} / {Math.round(r.budget)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{r.minReward.toFixed(2)} - {r.maxReward.toFixed(2)} USDT</td>
+                    <td className="px-4 py-3 whitespace-nowrap">{r.maxParticipants}</td>
                     <td className="px-4 py-3 whitespace-nowrap">{r.mission.type.replaceAll("_", " ")}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">{r.mission.boostMultiplier.toFixed(1)}x for {r.mission.boostDuration}h</td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {new Date(r.period.startDate).toLocaleDateString('en-US', { month: "short", day: "numeric" })} - {new Date(r.period.endDate).toLocaleDateString('en-US', { month: "short", day: "numeric" })}
                     </td>
