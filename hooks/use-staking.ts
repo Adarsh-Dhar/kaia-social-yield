@@ -125,10 +125,10 @@ export function useStaking() {
   }, [loadData])
 
   // Computed values
-  const hasStake = stakerData ? stakerData.amountStaked > 0n : false
-  const hasRewards = stakerData ? stakerData.rewards > 0n : false
+  const hasStake = stakerData ? stakerData.amountStaked > BigInt(0) : false
+  const hasRewards = stakerData ? stakerData.rewards > BigInt(0) : false
   const hasActiveBoost = stakerData ? 
-    stakerData.boostMultiplier > 0n && stakerData.boostExpiresAt > BigInt(Math.floor(Date.now() / 1000)) : 
+    stakerData.boostMultiplier > BigInt(0) && stakerData.boostExpiresAt > BigInt(Math.floor(Date.now() / 1000)) : 
     false
 
   const formattedAmountStaked = stakerData && stakerData.amountStaked !== undefined ? formatUsdt(stakerData.amountStaked) : '0'

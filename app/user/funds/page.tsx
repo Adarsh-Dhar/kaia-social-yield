@@ -11,7 +11,8 @@ import { ArrowLeft, TrendingUp, Wallet, Loader2, AlertCircle, CheckCircle, Zap }
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "@/hooks/use-toast"
 import { erc20Abi, formatUnits } from "viem"
-import { createClients, getUsdtTokenAddress } from "@/lib/social"
+import { USDT_TOKEN_ADDRESS } from "@/lib/social"
+import { createClients } from "@/lib/campaign_manager"
 
 export default function DepositPage() {
   const { address, isConnected } = useAccount()
@@ -128,7 +129,7 @@ export default function DepositPage() {
     let preBalance: bigint | null = null
     try {
       const { publicClient } = await createClients()
-      const tokenAddress = await getUsdtTokenAddress()
+      const tokenAddress = USDT_TOKEN_ADDRESS
       console.log(`[Token] Using token @ ${tokenAddress}`)
       preBalance = await publicClient.readContract({
         address: tokenAddress,
@@ -158,7 +159,7 @@ export default function DepositPage() {
         await loadData() // Refresh data
         try {
           const { publicClient } = await createClients()
-          const tokenAddress = await getUsdtTokenAddress()
+          const tokenAddress = USDT_TOKEN_ADDRESS
           console.log(`[Token] Using token @ ${tokenAddress}`)
           const postBalance = await publicClient.readContract({
             address: tokenAddress,
@@ -229,7 +230,7 @@ export default function DepositPage() {
     let preBalance: bigint | null = null
     try {
       const { publicClient } = await createClients()
-      const tokenAddress = await getUsdtTokenAddress()
+      const tokenAddress = USDT_TOKEN_ADDRESS
       console.log(`[Token] Using token @ ${tokenAddress}`)
       preBalance = await publicClient.readContract({
         address: tokenAddress,
@@ -252,7 +253,7 @@ export default function DepositPage() {
         await loadData() // Refresh data
         try {
           const { publicClient } = await createClients()
-          const tokenAddress = await getUsdtTokenAddress()
+          const tokenAddress = USDT_TOKEN_ADDRESS
           console.log(`[Token] Using token @ ${tokenAddress}`)
           const postBalance = await publicClient.readContract({
             address: tokenAddress,

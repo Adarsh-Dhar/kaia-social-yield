@@ -147,10 +147,10 @@ export function useSocialYieldProtocol() {
     })
   }, [executeOperation, walletClient])
 
-  const createCampaign = useCallback(async (budget: string): Promise<Hash | null> => {
+  const createCampaign = useCallback(async (budget: string, nftTokenURI: string = ''): Promise<Hash | null> => {
     return executeOperation(async () => {
       const service = await createSocialYieldProtocolService(walletClient)
-      return service.createCampaign(budget)
+      return service.createCampaign(budget, nftTokenURI)
     })
   }, [executeOperation, walletClient])
 

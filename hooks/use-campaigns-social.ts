@@ -93,8 +93,8 @@ export function useCampaignsSocial() {
       formattedSpent: formatUsdt(campaign.spent),
       remainingBudget: campaign.budget - campaign.spent,
       formattedRemainingBudget: formatUsdt(campaign.budget - campaign.spent),
-      budgetUtilization: campaign.budget > 0n ? 
-        Number((campaign.spent * 10000n) / campaign.budget) / 100 : 0
+      budgetUtilization: campaign.budget > BigInt(0) ?
+        Number((campaign.spent * BigInt(10000)) / campaign.budget) / 100 : 0
     }
   }, [formatUsdt])
 
