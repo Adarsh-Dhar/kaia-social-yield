@@ -20,11 +20,20 @@ export default function MissionsPage() {
 
   const handleMissionComplete = async (missionId: string) => {
     try {
-      await completeMission(missionId)
-      toast({
-        title: "Mission Completed!",
-        description: "Your yield boost has been activated.",
-      })
+      const result = await completeMission(missionId)
+      
+      // Show success message with transaction details
+      if (result.txHash) {
+        toast({
+          title: "Mission Completed! 🎉",
+          description: `You've earned a ${result.couponValue} USDT coupon! Transaction: ${result.txHash.slice(0, 10)}...`,
+        })
+      } else {
+        toast({
+          title: "Mission Completed!",
+          description: "Your yield boost has been activated.",
+        })
+      }
     } catch (error) {
       toast({
         title: "Error",

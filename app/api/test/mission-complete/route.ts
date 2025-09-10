@@ -1,20 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getAuthTokenFromRequest, verifyAuthToken } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
-  const token = getAuthTokenFromRequest(req);
-  console.log("Auth token received:", token ? "yes" : "no");
-  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const payload = verifyAuthToken(token);
-  console.log("Auth payload:", payload);
-  if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   try {
-    const { missionId } = await req.json();
+    const { missionId, userId } = await req.json();
     if (!missionId) return NextResponse.json({ error: "missionId is required" }, { status: 400 });
+    if (!userId) return NextResponse.json({ error: "userId is required" }, { status: 400 });
 
-    console.log("Mission completion request for missionId:", missionId);
+    console.log("Test mission completion request for missionId:", missionId, "userId:", userId);
 
     const mission = await prisma.mission.findUnique({ 
       where: { id: missionId },
@@ -51,25 +44,9 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Check if user has already completed this mission
-    const existingCompletion = await prisma.userMission.findUnique({
-      where: { 
-        userId_missionId: { 
-          userId: payload.userId, 
-          missionId 
-        } 
-      }
-    });
-
-    if (existingCompletion?.status === 'COMPLETED') {
-      return NextResponse.json({ 
-        error: "Mission already completed" 
-      }, { status: 400 });
-    }
-
     // Get user's wallet address
     const user = await prisma.user.findUnique({ 
-      where: { id: payload.userId },
+      where: { id: userId },
       select: { walletAddress: true }
     });
     
@@ -79,25 +56,28 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
+    console.log("User wallet address:", user.walletAddress);
+
     // Generate random coupon value within campaign bounds
     const minReward = mission.campaign.minReward;
     const maxReward = mission.campaign.maxReward;
     const randomValue = Math.random() * (maxReward - minReward) + minReward;
     const couponValue = Math.round(randomValue * 100) / 100; // Round to 2 decimal places
 
-    // For now, skip the blockchain transaction and just complete the mission
-    // TODO: Re-enable blockchain transaction once operator wallet is properly configured
-    console.log("Skipping blockchain transaction for testing");
+    console.log("Generated coupon value:", couponValue, "within bounds:", minReward, "-", maxReward);
+
+    // For testing, we'll skip the actual blockchain transaction and just return success
+    // In production, this would call the award-coupon endpoint
     
     // Mark mission as completed in database
     await prisma.userMission.upsert({
-      where: { userId_missionId: { userId: payload.userId, missionId } },
+      where: { userId_missionId: { userId, missionId } },
       update: { 
         status: "COMPLETED", 
         completedAt: new Date()
       },
       create: { 
-        userId: payload.userId, 
+        userId, 
         missionId, 
         status: "COMPLETED", 
         completedAt: new Date()
@@ -108,7 +88,7 @@ export async function POST(req: NextRequest) {
     if (mission.boostMultiplier > 0) {
       const now = new Date();
       const existing = await prisma.activeBoost.findFirst({
-        where: { userId: payload.userId, expiresAt: { gt: now } },
+        where: { userId, expiresAt: { gt: now } },
         orderBy: { expiresAt: "desc" },
       });
 
@@ -117,28 +97,24 @@ export async function POST(req: NextRequest) {
 
       await prisma.activeBoost.create({
         data: {
-          userId: payload.userId,
+          userId,
           boostMultiplier: mission.boostMultiplier,
           expiresAt: newExpiry,
         },
       });
     }
 
-    const awardResult = { txHash: "test-tx-hash-12345" };
-
     return NextResponse.json({ 
       ok: true, 
-      txHash: awardResult.txHash,
+      txHash: "test-tx-hash-12345",
       couponValue: couponValue,
-      message: "Mission completed and coupon awarded successfully"
+      message: "Mission completed and coupon awarded successfully (test mode)"
     });
   } catch (e) {
-    console.error("Mission completion error:", e);
+    console.error("Test mission completion error:", e);
     return NextResponse.json({ 
       error: "Failed to complete mission",
       details: e instanceof Error ? e.message : "Unknown error"
     }, { status: 500 });
   }
 }
-
- 
