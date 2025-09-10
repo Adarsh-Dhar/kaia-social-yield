@@ -38,6 +38,8 @@ export default function DepositPage() {
   const [isWithdrawing, setIsWithdrawing] = useState(false)
   const [isClaiming, setIsClaiming] = useState(false)
 
+  const availableBalance = stakerData ? Number(stakerData.amountStaked) / 1e6 : 0
+
   // Load data on mount
   useEffect(() => {
     if (isConnected) {
@@ -100,7 +102,7 @@ export default function DepositPage() {
     if (amountNum > 1000000) {
       toast({
         title: "Amount Too Large",
-        description: "Please enter an amount less than 1,000,000 USDT",
+        description: "Please enter an amount less than 1,000,000 USDC",
         variant: "destructive",
       })
       return
@@ -177,13 +179,22 @@ export default function DepositPage() {
       return
     }
 
+    if (parseFloat(amount) > availableBalance) {
+      toast({
+        title: "Insufficient Balance",
+        description: `You can only withdraw up to ${availableBalance.toFixed(2)} USDC`,
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsWithdrawing(true)
     try {
       const txHash = await withdraw(amount)
       if (txHash) {
         toast({
           title: "Withdrawal Successful",
-          description: `Successfully withdrew ${amount} USDT. Transaction: ${txHash.slice(0, 10)}...`,
+          description: `Successfully withdrew ${amount} USDC. Transaction: ${txHash.slice(0, 10)}...`,
       })
       setAmount("")
         await loadData() // Refresh data
@@ -191,7 +202,7 @@ export default function DepositPage() {
     } catch (error) {
       toast({
         title: "Withdrawal Failed",
-        description: error instanceof Error ? error.message : "Failed to withdraw USDT",
+        description: error instanceof Error ? error.message : "Failed to withdraw USDC",
         variant: "destructive",
       })
     } finally {
@@ -433,7 +444,7 @@ export default function DepositPage() {
 
               <Button
                 onClick={handleWithdraw}
-                disabled={isWithdrawing || isLoading || !hasStake || !amount || parseFloat(amount) <= 0}
+                disabled={isWithdrawing || isLoading || !amount || parseFloat(amount) <= 0 || parseFloat(amount) > availableBalance}
                 variant="outline"
               >
                 {isWithdrawing ? (
