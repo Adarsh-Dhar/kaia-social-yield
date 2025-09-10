@@ -9,7 +9,7 @@ import {
   type PublicClient,
   type WalletClient
 } from 'viem'
-import { anvil } from 'viem/chains'
+import { kairos } from 'viem/chains'
 import { ESCROW_ABI } from './abi'
 import { ESCROW_ADDRESS } from './address'
 
@@ -82,12 +82,12 @@ export class NotOwnerError extends ContractError {
 
 // Helper function to get the appropriate chain
 function getChain() {
-  return anvil // Always use Anvil for local development
+  return kairos // Always use Kairos testnet
 }
 
 // Helper function to get RPC URL
 function getRpcUrl() {
-  return 'http://127.0.0.1:8545' // Anvil local RPC
+  return 'https://public-en-kairos.node.kaia.io' // Kairos RPC
 }
 
 // Create clients

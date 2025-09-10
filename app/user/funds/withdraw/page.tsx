@@ -258,7 +258,7 @@ export default function WithdrawPage() {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Network:</span>
-                  <span className="text-foreground">Anvil (Local)</span>
+                  <span className="text-foreground">Kairos Testnet</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Token:</span>

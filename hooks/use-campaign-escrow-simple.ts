@@ -5,9 +5,12 @@ import { useCallback, useState } from 'react'
 import { 
   parseEther,
   formatEther,
+  createWalletClient,
+  custom,
   type Address,
   type Hash
 } from 'viem'
+import { kairos } from 'viem/chains'
 import { CAMPAIGN_ESCROW_ABI, CAMPAIGN_ESCROW_ADDRESS } from '@/lib/escrow'
 
 export interface Campaign {
@@ -144,9 +147,57 @@ export function useCampaignEscrowSimple(): UseCampaignEscrowSimpleReturn {
     console.log('walletClient:', !!walletClient);
     console.log('walletClient.account:', walletClient?.account);
     
-    if (!walletClient || !walletClient.account) {
-      console.log('No wallet client or account available');
-      setError('Wallet not connected or account not available');
+    // Resolve an effective wallet client (force network switch first, then build)
+    let effectiveWallet = walletClient
+    const provider = (typeof window !== 'undefined' ? (window as any)?.ethereum : undefined)
+    try {
+      if (provider?.request) {
+        await provider.request({ method: 'eth_requestAccounts' })
+        // Force switch to Kairos (1001)
+        const desiredHex = '0x3e9'
+        let currentHex = await provider.request({ method: 'eth_chainId' })
+        if (currentHex?.toLowerCase() !== desiredHex) {
+          try {
+            await provider.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: desiredHex }]
+            })
+          } catch (switchError: any) {
+            if (switchError?.code === 4902) {
+              await provider.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: desiredHex,
+                  chainName: 'Kairos Testnet',
+                  nativeCurrency: { name: 'KAIA', symbol: 'KAIA', decimals: 18 },
+                  rpcUrls: ['https://public-en-kairos.node.kaia.io'],
+                  blockExplorerUrls: ['https://explorer.kairos.kaia.io']
+                }]
+              })
+            } else {
+              throw switchError
+            }
+          }
+          // Re-check after switch
+          currentHex = await provider.request({ method: 'eth_chainId' })
+        }
+        if (currentHex?.toLowerCase() !== '0x3e9') {
+          setError('Please switch your wallet to Kairos Testnet (1001) and try again.')
+          return null
+        }
+        // Rebuild fresh client bound to Kairos
+        effectiveWallet = createWalletClient({
+          chain: kairos,
+          transport: custom(provider)
+        }) as typeof walletClient
+      }
+    } catch (e) {
+      console.warn('Failed to set up wallet on Kairos:', e)
+    }
+
+    if (!effectiveWallet) {
+      console.log('No wallet client available');
+      setError('Please connect your wallet on Kairos Testnet (1001)');
       return null
     }
 
@@ -154,24 +205,97 @@ export function useCampaignEscrowSimple(): UseCampaignEscrowSimpleReturn {
       const amount = parseEther(initialFunding)
       console.log('Parsed amount:', amount.toString());
       console.log('Contract address:', CAMPAIGN_ESCROW_ADDRESS);
+      // Preflight checks: chain and contract deployment
+      if (!publicClient || !publicClient.chain) {
+        setError('Network not detected. Please switch to Kairos Testnet (1001).')
+        return null
+      }
+      if (publicClient.chain.id !== 1001) {
+        setError(`Wrong network: ${publicClient.chain.name} (${publicClient.chain.id}). Switch to Kairos Testnet (1001).`)
+        return null
+      }
+
+      // Wallet is ensured on Kairos above
+      const bytecode = await publicClient.getBytecode({ address: CAMPAIGN_ESCROW_ADDRESS })
+      if (!bytecode) {
+        setError('CampaignEscrow not deployed on Kairos. Update lib/escrow/address.ts with the Kairos address.')
+        return null
+      }
       
       try {
-        const result = await walletClient.writeContract({
+        // Determine the active account directly from MetaMask/provider first
+        let txAccount: Address | undefined
+        try {
+          const providerAccounts: string[] = await (provider as any)?.request?.({ method: 'eth_accounts' })
+          if (Array.isArray(providerAccounts) && providerAccounts.length > 0) {
+            txAccount = providerAccounts[0] as Address
+          }
+        } catch {}
+        // Fallback to client-derived addresses
+        if (!txAccount) {
+          try {
+            const addrs = await (effectiveWallet as any).getAddresses?.()
+            if (addrs && addrs.length > 0) txAccount = addrs[0] as Address
+          } catch {}
+        }
+        // Final fallback: wagmi address (may be wrong if using local json-rpc)
+        if (!txAccount && address) {
+          txAccount = address as Address
+        }
+        if (!txAccount) {
+          setError('No wallet account detected. Please reconnect your wallet.')
+          return null
+        }
+
+        // Preflight: ensure sufficient balance and simulate call
+        try {
+          const balance = await publicClient.getBalance({ address: txAccount })
+          if (balance < amount) {
+            setError('Insufficient KAIA balance for the provided initial funding.')
+            return null
+          }
+        } catch {}
+
+        try {
+          await publicClient.simulateContract({
+            address: CAMPAIGN_ESCROW_ADDRESS,
+            abi: CAMPAIGN_ESCROW_ABI,
+            functionName: 'createCampaign',
+            args: [amount],
+            account: txAccount,
+            value: amount,
+            chain: kairos
+          })
+        } catch (simErr: any) {
+          const reason = (simErr?.shortMessage || simErr?.message || 'Simulation failed') as string
+          setError(reason)
+          throw simErr
+        }
+
+        const result = await effectiveWallet.writeContract({
           address: CAMPAIGN_ESCROW_ADDRESS,
           abi: CAMPAIGN_ESCROW_ABI,
           functionName: 'createCampaign',
           args: [amount],
           value: amount,
-          account: walletClient.account
+          account: txAccount,
+          chain: kairos
         })
         console.log('Contract call successful, hash:', result);
         return result
       } catch (error) {
         console.error('Contract call failed:', error);
+        if (error && typeof error === 'object' && 'details' in (error as any) && typeof (error as any).details === 'string') {
+          setError((error as any).details as string)
+        } else if (error instanceof Error && error.message) {
+          setError(error.message)
+        } else {
+          setError('Transaction failed')
+        }
         throw error
       }
     })
-  }, [walletClient, executeWithLoading])
+  }, [walletClient, address, publicClient, executeWithLoading])
 
   const addFunds = useCallback(async (campaignId: `0x${string}`, amount: string): Promise<Hash | null> => {
     if (!walletClient || !walletClient.account) return null

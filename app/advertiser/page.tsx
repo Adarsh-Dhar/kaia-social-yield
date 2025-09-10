@@ -190,9 +190,9 @@ export default function AdvertiserHome() {
       }
 
       // Check if wallet is connected to the correct network
-      // The contract is deployed to Anvil local network (31337)
+      // The contract is deployed to Kairos testnet
       console.log('Current network:', publicClient?.chain?.name || 'Unknown');
-      console.log('Expected network: Anvil (31337)');
+      console.log('Expected network: Kairos Testnet (1001)');
 
       let contractCampaignId: string | null = null;
       
@@ -210,7 +210,7 @@ export default function AdvertiserHome() {
         
         if (!txHash) {
           const networkInfo = publicClient?.chain ? `Current network: ${publicClient.chain.name} (${publicClient.chain.id})` : 'Network not detected';
-          const expectedNetwork = 'Expected: Anvil (31337)';
+          const expectedNetwork = 'Expected: Kairos Testnet (1001)';
           throw new Error(`Failed to create campaign on contract. ${networkInfo}. ${expectedNetwork}. Error: ${contractError || 'Unknown error'}`);
         }
 
@@ -232,7 +232,7 @@ export default function AdvertiserHome() {
             // For local development, we'll assume the transaction succeeded
             // In production, you might want to handle this differently
             console.log('Continuing with campaign creation assuming transaction succeeded...');
-            console.log('This is normal for local development with Anvil. The transaction was submitted successfully.');
+            console.log('If on Kairos explorer, you can verify the transaction later.');
           }
         }
         
@@ -240,33 +240,35 @@ export default function AdvertiserHome() {
         // The contract emits CampaignCreated(campaignId, msg.sender, initialFunding)
         let campaignCreatedLog = null;
         if (receipt && receipt.logs) {
+          const escrowAddressLc = (CAMPAIGN_ESCROW_ABI as any) ? (undefined) : undefined; // noop to keep import used
           campaignCreatedLog = receipt.logs.find((log: any) => {
             try {
               const decoded = decodeEventLog({
                 abi: CAMPAIGN_ESCROW_ABI,
                 data: log.data,
                 topics: log.topics,
+                eventName: 'CampaignCreated',
               });
               return decoded.eventName === 'CampaignCreated';
             } catch {
               return false;
             }
           });
-          
+
           if (campaignCreatedLog) {
             try {
               const decoded = decodeEventLog({
                 abi: CAMPAIGN_ESCROW_ABI,
                 data: campaignCreatedLog.data,
                 topics: campaignCreatedLog.topics,
-              });
-              if (decoded.args && Array.isArray(decoded.args) && decoded.args.length > 0) {
-                // Convert bytes32 to hex string (0x prefix)
-                const campaignIdBytes32 = decoded.args[0] as `0x${string}`;
-                contractCampaignId = campaignIdBytes32;
-              } else {
-                throw new Error("Campaign ID not found in event args");
+                eventName: 'CampaignCreated',
+              }) as unknown as { eventName: string; args: any };
+              const args = decoded.args as any;
+              const campaignIdBytes32 = (args?.campaignId ?? (Array.isArray(args) ? args[0] : undefined)) as `0x${string}` | undefined;
+              if (!campaignIdBytes32) {
+                throw new Error('Campaign ID not found in event args');
               }
+              contractCampaignId = campaignIdBytes32;
             } catch (error) {
               throw new Error("Could not decode campaign creation event");
             }
@@ -460,7 +462,7 @@ export default function AdvertiserHome() {
                   Connected to: {publicClient.chain?.name} (Chain ID: {publicClient.chain?.id})
                   <br />
                   <span className="text-xs text-gray-600">
-                    Expected: Anvil (31337)
+                    Expected: Kairos Testnet (1001)
                   </span>
                 </div>
               )}
