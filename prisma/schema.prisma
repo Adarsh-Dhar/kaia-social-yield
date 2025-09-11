@@ -80,6 +80,7 @@ model UserMission {
   missionId   String
   status      String
   completedAt DateTime?
+  couponValue Float?
   mission     Mission   @relation(fields: [missionId], references: [id])
   user        User      @relation(fields: [userId], references: [id])
 

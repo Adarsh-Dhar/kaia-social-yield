@@ -68,39 +68,33 @@ export async function POST(req: NextRequest) {
     const randomValue = Math.random() * (maxReward - minReward) + minReward;
     const couponValue = Math.round(randomValue * 100) / 100; // Round to 2 decimal places
 
-    // Call the award-coupon endpoint to handle the on-chain transaction
-    const awardCouponResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/missions/award-coupon`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+    // Update the mission completion in the database
+    await prisma.userMission.upsert({
+      where: {
+        userId_missionId: {
+          userId: payload.userId,
+          missionId: missionId
+        }
       },
-      body: JSON.stringify({
+      update: {
+        status: 'COMPLETED',
+        completedAt: new Date(),
+        couponValue: couponValue
+      } as any,
+      create: {
+        userId: payload.userId,
         missionId: missionId,
-        campaignId: mission.campaign.contractCampaignId,
-        couponValue: couponValue.toString()
-      })
+        status: 'COMPLETED',
+        completedAt: new Date(),
+        couponValue: couponValue
+      } as any
     });
-
-    if (!awardCouponResponse.ok) {
-      const errorData = await awardCouponResponse.json();
-      console.log("Award coupon failed:", errorData);
-      
-      // Pass through the detailed error from award-coupon endpoint
-      return NextResponse.json({
-        error: errorData.error || "Failed to award coupon",
-        details: errorData.details || "Unknown error",
-        message: errorData.message || "Blockchain transaction failed"
-      }, { status: awardCouponResponse.status });
-    }
-
-    const awardResult = await awardCouponResponse.json();
 
     return NextResponse.json({ 
       ok: true, 
-      txHash: awardResult.txHash,
       couponValue: couponValue,
-      message: "Mission completed and coupon awarded successfully"
+      campaignId: mission.campaign.contractCampaignId,
+      message: "Mission completed successfully. Please claim your coupon on-chain."
     });
   } catch (e) {
     console.error("Mission completion error:", e);
