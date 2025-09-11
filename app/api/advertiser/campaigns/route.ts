@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       data: {
         name,
         description,
-        status: "DRAFT",
+        status: "ACTIVE", // Set campaigns as ACTIVE by default
         budget: Number(budget),
         remainingBudget: Number(budget),
         startDate: new Date(startDate),
@@ -127,8 +127,8 @@ export async function GET(req: NextRequest) {
         boostsActive: c.activeBoosts.length,
         actions: {
           canView: true,
-          canEdit: c.status === "DRAFT",
-          canDelete: c.status === "DRAFT",
+          canEdit: c.status === "DRAFT", // Still allow editing DRAFT campaigns
+          canDelete: c.status === "DRAFT", // Still allow deleting DRAFT campaigns
           canPause: c.status === "ACTIVE",
           canResume: c.status === "PAUSED",
           canViewReport: c.status === "ACTIVE" || c.status === "COMPLETED" || c.status === "PAUSED",

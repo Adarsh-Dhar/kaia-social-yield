@@ -15,6 +15,14 @@ export async function GET(req: NextRequest) {
           where: { userId: payload.userId },
           select: { status: true },
         },
+        campaign: {
+          select: { status: true }
+        }
+      },
+      where: {
+        campaign: {
+          status: 'ACTIVE'
+        }
       },
       orderBy: { title: "asc" },
     });

@@ -25,7 +25,9 @@ export function useMissions() {
   const fetchMissions = useCallback(async () => {
     try {
       setLoading(true)
-      const response = await fetch("/api/missions")
+      const response = await fetch("/api/missions", {
+        credentials: "include" // Include cookies in the request
+      })
       
       if (!response.ok) {
         if (response.status === 401) {
@@ -56,6 +58,7 @@ export function useMissions() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include", // Include cookies in the request
         body: JSON.stringify({ missionId }),
       })
 

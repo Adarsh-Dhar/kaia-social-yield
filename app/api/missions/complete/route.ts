@@ -21,14 +21,16 @@ export async function POST(req: NextRequest) {
     // Check if mission has an associated campaign
     if (!mission.campaign) {
       return NextResponse.json({ 
-        error: "Mission does not have an associated campaign" 
+        error: "This mission is not available for completion",
+        details: "Mission does not have an associated campaign"
       }, { status: 400 });
     }
 
     // Check if campaign is active
     if (mission.campaign.status !== 'ACTIVE') {
       return NextResponse.json({ 
-        error: `Campaign is not active (status: ${mission.campaign.status})` 
+        error: "This mission is not available for completion",
+        details: `Campaign is not active (status: ${mission.campaign.status})`
       }, { status: 400 });
     }
 
