@@ -4,37 +4,22 @@ import { getAuthTokenFromRequest, verifyAuthToken } from "@/lib/auth";
 
 export async function POST(req: NextRequest) {
   const token = getAuthTokenFromRequest(req);
-  console.log("Auth token received:", token ? "yes" : "no");
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const payload = verifyAuthToken(token);
-  console.log("Auth payload:", payload);
   if (!payload) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
     const { missionId } = await req.json();
     if (!missionId) return NextResponse.json({ error: "missionId is required" }, { status: 400 });
 
-    console.log("Mission completion request for missionId:", missionId);
-
     const mission = await prisma.mission.findUnique({ 
       where: { id: missionId },
       include: { campaign: true }
     });
-    if (!mission) {
-      console.log("Mission not found:", missionId);
-      return NextResponse.json({ error: "Mission not found" }, { status: 404 });
-    }
-
-    console.log("Mission found:", { 
-      id: mission.id, 
-      title: mission.title, 
-      hasCampaign: !!mission.campaign,
-      campaignStatus: mission.campaign?.status 
-    });
+    if (!mission) return NextResponse.json({ error: "Mission not found" }, { status: 404 });
 
     // Check if mission has an associated campaign
     if (!mission.campaign) {
-      console.log("Mission has no associated campaign:", missionId);
       return NextResponse.json({ 
         error: "Mission does not have an associated campaign" 
       }, { status: 400 });
@@ -42,10 +27,6 @@ export async function POST(req: NextRequest) {
 
     // Check if campaign is active
     if (mission.campaign.status !== 'ACTIVE') {
-      console.log("Campaign is not active:", { 
-        campaignId: mission.campaign.id, 
-        status: mission.campaign.status 
-      });
       return NextResponse.json({ 
         error: `Campaign is not active (status: ${mission.campaign.status})` 
       }, { status: 400 });
@@ -85,46 +66,33 @@ export async function POST(req: NextRequest) {
     const randomValue = Math.random() * (maxReward - minReward) + minReward;
     const couponValue = Math.round(randomValue * 100) / 100; // Round to 2 decimal places
 
-    // For now, skip the blockchain transaction and just complete the mission
-    // TODO: Re-enable blockchain transaction once operator wallet is properly configured
-    console.log("Skipping blockchain transaction for testing");
-    
-    // Mark mission as completed in database
-    await prisma.userMission.upsert({
-      where: { userId_missionId: { userId: payload.userId, missionId } },
-      update: { 
-        status: "COMPLETED", 
-        completedAt: new Date()
+    // Call the award-coupon endpoint to handle the on-chain transaction
+    const awardCouponResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/missions/award-coupon`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
-      create: { 
-        userId: payload.userId, 
-        missionId, 
-        status: "COMPLETED", 
-        completedAt: new Date()
-      },
+      body: JSON.stringify({
+        missionId: missionId,
+        campaignId: mission.campaign.contractCampaignId,
+        couponValue: couponValue.toString()
+      })
     });
 
-    // Apply boost if mission has boost properties
-    if (mission.boostMultiplier > 0) {
-      const now = new Date();
-      const existing = await prisma.activeBoost.findFirst({
-        where: { userId: payload.userId, expiresAt: { gt: now } },
-        orderBy: { expiresAt: "desc" },
-      });
-
-      const baseExpiry = existing?.expiresAt && existing.expiresAt > now ? existing.expiresAt : now;
-      const newExpiry = new Date(baseExpiry.getTime() + mission.boostDuration * 60 * 60 * 1000);
-
-      await prisma.activeBoost.create({
-        data: {
-          userId: payload.userId,
-          boostMultiplier: mission.boostMultiplier,
-          expiresAt: newExpiry,
-        },
-      });
+    if (!awardCouponResponse.ok) {
+      const errorData = await awardCouponResponse.json();
+      console.log("Award coupon failed:", errorData);
+      
+      // Pass through the detailed error from award-coupon endpoint
+      return NextResponse.json({
+        error: errorData.error || "Failed to award coupon",
+        details: errorData.details || "Unknown error",
+        message: errorData.message || "Blockchain transaction failed"
+      }, { status: awardCouponResponse.status });
     }
 
-    const awardResult = { txHash: "test-tx-hash-12345" };
+    const awardResult = await awardCouponResponse.json();
 
     return NextResponse.json({ 
       ok: true, 

@@ -24,10 +24,19 @@ export default function MissionsPage() {
       
       // Show success message with transaction details
       if (result.txHash) {
-        toast({
-          title: "Mission Completed! 🎉",
-          description: `You've earned a ${result.couponValue} USDT coupon! Transaction: ${result.txHash.slice(0, 10)}...`,
-        })
+        if (result.txHash === "dev-mode-simulation") {
+          toast({
+            title: "Mission Completed! 🎉",
+            description: `You've earned a ${result.couponValue} USDT coupon! (Development mode - blockchain transaction simulated)`,
+            duration: 5000,
+          })
+        } else {
+          toast({
+            title: "Mission Completed! 🎉",
+            description: `You've earned a ${result.couponValue} USDT coupon! Transaction: ${result.txHash.slice(0, 10)}...`,
+            duration: 5000,
+          })
+        }
       } else {
         toast({
           title: "Mission Completed!",

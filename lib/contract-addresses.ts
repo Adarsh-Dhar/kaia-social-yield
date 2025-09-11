@@ -3,13 +3,13 @@
 
 export const CONTRACT_ADDRESSES = {
   // Campaign Manager Contract
-  CAMPAIGN_MANAGER: "0x15bdf06a6D9731346ADfb3C2Ac9dDeb83AE73BB8" as const,
+  CAMPAIGN_MANAGER: "0xBDc85FDE8A360013594Af89484D625D62bE4860c" as const,
   
   // Coupon NFT Contract  
-  COUPON_NFT: "0x33E5355C3107eFec2786828FE45D2628D1B20438" as const,
+  COUPON_NFT: "0x1AF0BaD3C852a601B243d942737A526B823C5E1b" as const,
   
   // Mock USDT Contract
-  MOCK_USDT: "0x3e07f227F06DCF931DdE90d3B59EE3612632d58F" as const,
+  MOCK_USDT: "0x15bbf3994a491D6A2ff1e7BA3953A3C3de382Cee" as const,
 } as const
 
 // Helper function to check if addresses are configured

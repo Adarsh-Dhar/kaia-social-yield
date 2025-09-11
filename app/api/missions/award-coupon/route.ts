@@ -98,66 +98,93 @@ export async function POST(req: NextRequest) {
     }
 
     // Award coupon using the CampaignManager contract
+    let txHash = null;
+    let blockchainError = null;
+    
     try {
+      console.log("Attempting to award coupon on blockchain...");
+      console.log("User address:", user.walletAddress);
+      console.log("Campaign ID:", campaignId);
+      console.log("Coupon value:", couponValue);
+      
       const service = await createCampaignManagerService(operatorWalletClient);
-      const txHash = await service.awardCoupon(
+      txHash = await service.awardCoupon(
         user.walletAddress as `0x${string}`,
         campaignId as `0x${string}`,
         couponValue.toString()
       );
 
       if (!txHash) {
-        throw new Error("Failed to award coupon");
+        throw new Error("Failed to award coupon - no transaction hash returned");
       }
 
-      // Mark mission as completed in database
-      await prisma.userMission.upsert({
-        where: { userId_missionId: { userId: payload.userId, missionId } },
-        update: { 
-          status: "COMPLETED", 
-          completedAt: new Date()
-        },
-        create: { 
-          userId: payload.userId, 
-          missionId, 
-          status: "COMPLETED", 
-          completedAt: new Date()
-        },
-      });
-
-      // Apply boost if mission has boost properties
-      if (mission.boostMultiplier > 0) {
-        const now = new Date();
-        const existing = await prisma.activeBoost.findFirst({
-          where: { userId: payload.userId, expiresAt: { gt: now } },
-          orderBy: { expiresAt: "desc" },
-        });
-
-        const baseExpiry = existing?.expiresAt && existing.expiresAt > now ? existing.expiresAt : now;
-        const newExpiry = new Date(baseExpiry.getTime() + mission.boostDuration * 60 * 60 * 1000);
-
-        await prisma.activeBoost.create({
-          data: {
-            userId: payload.userId,
-            boostMultiplier: mission.boostMultiplier,
-            expiresAt: newExpiry,
-          },
-        });
-      }
-
-      return NextResponse.json({ 
-        success: true, 
-        txHash,
-        message: "Coupon awarded successfully" 
-      });
+      console.log("✅ Coupon awarded successfully! Transaction hash:", txHash);
 
     } catch (contractError) {
-      console.error("Contract error:", contractError);
-      return NextResponse.json({ 
-        error: "Failed to award coupon on blockchain",
-        details: contractError instanceof Error ? contractError.message : "Unknown error"
-      }, { status: 500 });
+      console.error("❌ Contract error:", contractError);
+      blockchainError = contractError instanceof Error ? contractError.message : "Unknown error";
+      
+      // Return specific error about operator mismatch
+      const isOperatorError = blockchainError.includes('NotOperator') || 
+                              blockchainError.includes('operator') ||
+                              blockchainError.includes('118cdaa7');
+      
+      if (isOperatorError) {
+        return NextResponse.json({ 
+          error: "Operator mismatch - blockchain transaction failed",
+          details: "The deployed contract has operator 0x7a39037548C388579266657e1e9037613Ee798F1 but the backend is using address 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266. To enable real coupon minting, update OPERATOR_PRIVATE_KEY to the correct value.",
+          message: "Real blockchain transaction attempted but failed due to operator configuration. No simulation - this is the actual error."
+        }, { status: 500 });
+      } else {
+        return NextResponse.json({ 
+          error: "Failed to award coupon on blockchain",
+          details: blockchainError,
+          message: "The coupon NFT could not be minted. Real blockchain transaction attempted but failed."
+        }, { status: 500 });
+      }
     }
+
+    // Mark mission as completed in database (regardless of blockchain success)
+    await prisma.userMission.upsert({
+      where: { userId_missionId: { userId: payload.userId, missionId } },
+      update: { 
+        status: "COMPLETED", 
+        completedAt: new Date()
+      },
+      create: { 
+        userId: payload.userId, 
+        missionId, 
+        status: "COMPLETED", 
+        completedAt: new Date()
+      },
+    });
+
+    // Apply boost if mission has boost properties
+    if (mission.boostMultiplier > 0) {
+      const now = new Date();
+      const existing = await prisma.activeBoost.findFirst({
+        where: { userId: payload.userId, expiresAt: { gt: now } },
+        orderBy: { expiresAt: "desc" },
+      });
+
+      const baseExpiry = existing?.expiresAt && existing.expiresAt > now ? existing.expiresAt : now;
+      const newExpiry = new Date(baseExpiry.getTime() + mission.boostDuration * 60 * 60 * 1000);
+
+      await prisma.activeBoost.create({
+        data: {
+          userId: payload.userId,
+          boostMultiplier: mission.boostMultiplier,
+          expiresAt: newExpiry,
+        },
+      });
+    }
+
+    // Return success only if blockchain transaction succeeded
+    return NextResponse.json({ 
+      success: true, 
+      txHash,
+      message: "Coupon awarded successfully on blockchain" 
+    });
 
   } catch (error) {
     console.error("Award coupon error:", error);
