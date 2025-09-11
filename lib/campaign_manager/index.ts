@@ -377,7 +377,7 @@ export class CampaignManagerService {
     }
   }
 
-  async getMyCouponsOptimized(maxTokenId: bigint): Promise<{ tokenIds: bigint[]; values: bigint[] }> {
+  async getMyCouponsOptimized(maxTokenId: bigint, userAddress?: Address): Promise<{ tokenIds: bigint[]; values: bigint[] }> {
     if (!isContractAddressValid(CAMPAIGN_MANAGER_CONFIG.address)) {
       throw new ContractNotDeployedError()
     }
@@ -387,7 +387,8 @@ export class CampaignManagerService {
         address: CAMPAIGN_MANAGER_CONFIG.address,
         abi: CAMPAIGN_MANAGER_CONFIG.abi,
         functionName: 'getMyCouponsOptimized',
-        args: [maxTokenId]
+        args: [maxTokenId],
+        account: userAddress
       }) as unknown as [bigint[], bigint[]]
 
       const [tokenIds, values] = result
@@ -904,10 +905,10 @@ export async function getMyCoupons(startTokenId: bigint, endTokenId: bigint): Pr
   }
 }
 
-export async function getMyCouponsOptimized(maxTokenId: bigint): Promise<{ tokenIds: bigint[]; values: bigint[] }> {
+export async function getMyCouponsOptimized(maxTokenId: bigint, userAddress?: Address): Promise<{ tokenIds: bigint[]; values: bigint[] }> {
   try {
     const service = await createCampaignManagerService()
-    return service.getMyCouponsOptimized(maxTokenId)
+    return service.getMyCouponsOptimized(maxTokenId, userAddress)
   } catch (error) {
     if (error instanceof ContractNotDeployedError) {
       return { tokenIds: [], values: [] }

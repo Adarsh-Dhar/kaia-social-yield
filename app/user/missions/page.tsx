@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { MissionCard } from "@/components/mission-card"
 import { useMissions } from "@/hooks/use-missions"
-import { ArrowLeft, Loader2, AlertCircle, Gift, UserPlus, CheckCircle } from "lucide-react"
+import { useAwardCoupon } from "@/hooks/use-award-coupon"
+import { ArrowLeft, Loader2, AlertCircle, Gift, UserPlus, CheckCircle, Wallet } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "@/hooks/use-toast"
 
@@ -16,33 +17,70 @@ const missionIcons: Record<string, any> = {
 }
 
 export default function MissionsPage() {
-  const { data: missionsData, loading: missionsLoading, error: missionsError, completeMission } = useMissions()
+  const { data: missionsData, loading: missionsLoading, error: missionsError } = useMissions()
+  const { awardCoupon, isLoading: isAwardingCoupon, error: awardError, isConnected, address } = useAwardCoupon()
 
   const handleMissionComplete = async (missionId: string) => {
     try {
-      const result = await completeMission(missionId)
-      
-      // Show success message with transaction details
-      if (result.txHash) {
-        if (result.txHash === "dev-mode-simulation") {
+      // 1) Mark mission complete in backend and get coupon params
+      const response = await fetch("/api/missions/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ missionId }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to complete mission")
+      }
+
+      const result = await response.json()
+
+      // 2) Award coupon using frontend hook (requires wallet connection)
+      if (result.ok && result.campaignId && result.couponValue) {
+        if (!isConnected || !address) {
           toast({
-            title: "Mission Completed! 🎉",
-            description: `You've earned a ${result.couponValue} USDT coupon! (Development mode - blockchain transaction simulated)`,
-            duration: 5000,
+            title: "Wallet Required",
+            description: "Please connect your wallet to claim your coupon NFT.",
+            variant: "destructive",
           })
-        } else {
+          return
+        }
+
+        try {
+          const txHash = await awardCoupon({
+            user: address,
+            campaignId: result.campaignId as `0x${string}`,
+            randomCouponValue: result.couponValue.toString()
+          })
+
+          if (txHash) {
+            toast({
+              title: "Mission Completed! 🎉",
+              description: `You've earned a ${result.couponValue} USDT coupon NFT! Transaction: ${txHash.slice(0, 10)}...`,
+              duration: 5000,
+            })
+          } else {
+            throw new Error("Failed to mint coupon NFT")
+          }
+        } catch (awardError) {
+          console.error("Coupon award error:", awardError)
           toast({
-            title: "Mission Completed! 🎉",
-            description: `You've earned a ${result.couponValue} USDT coupon! Transaction: ${result.txHash.slice(0, 10)}...`,
-            duration: 5000,
+            title: "Mission Completed",
+            description: `You've earned a ${result.couponValue} USDT coupon! (NFT minting failed - please try again)`,
+            variant: "destructive",
           })
         }
       } else {
         toast({
-          title: "Mission Completed!",
+          title: "Mission Completed",
           description: "Your yield boost has been activated.",
         })
       }
+
+      // Refresh to reflect updated mission statuses
+      window.location.reload()
     } catch (error) {
       toast({
         title: "Error",
@@ -95,6 +133,15 @@ export default function MissionsPage() {
           <h1 className="text-2xl font-bold text-foreground">Yield Boost Missions</h1>
         </div>
 
+        {!isConnected && (
+          <Alert>
+            <Wallet className="h-4 w-4" />
+            <AlertDescription>
+              Connect your wallet to claim coupon NFTs when completing missions.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Card className="bg-card border-border">
           <CardContent className="pt-6">
             <div className="grid grid-cols-2 gap-4 text-center">
@@ -122,10 +169,11 @@ export default function MissionsPage() {
                     icon={IconComponent}
                     title={mission.title}
                     description={mission.description}
-                    buttonText="Complete"
+                    buttonText={isAwardingCoupon ? "Minting NFT..." : "Complete"}
                     onButtonClick={() => handleMissionComplete(mission.id)}
                     completed={false}
                     boostInfo={`${mission.boostMultiplier}x boost for ${mission.boostDuration}h`}
+                    disabled={!isConnected || isAwardingCoupon}
                   />
                 )
               })}
@@ -170,9 +218,11 @@ export default function MissionsPage() {
               <h4 className="font-medium text-foreground">How Missions Work:</h4>
               <ul className="space-y-1 text-muted-foreground">
                 <li>• Complete missions to earn yield boosts</li>
+                <li>• Get USDT coupon NFTs as rewards</li>
                 <li>• Boosts multiply your base APY</li>
                 <li>• Some missions are repeatable</li>
                 <li>• Boosts stack for maximum yield</li>
+                <li>• Connect wallet to claim NFT rewards</li>
               </ul>
             </div>
           </CardContent>

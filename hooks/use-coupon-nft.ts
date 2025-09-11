@@ -203,62 +203,93 @@ export function useCouponNFT(): UseCouponNFTReturn {
     try {
       setIsLoading(true)
       setError(null)
+      console.log('[useCouponNFT] loadCoupons called', { address, isConnected })
       
-      // Check if contract is deployed
-      if (COUPON_NFT_ADDRESS === "0x0000000000000000000000000000000000000000") {
-        console.warn('CouponNFT contract not deployed')
+      // Validate contract addresses
+      if (
+        CAMPAIGN_MANAGER_ADDRESS === "0x0000000000000000000000000000000000000000" ||
+        COUPON_NFT_ADDRESS === "0x0000000000000000000000000000000000000000"
+      ) {
+        console.warn('Contracts not configured')
+        setCoupons([])
         return
       }
 
-      // Get user's coupon balance
-      const balance = await publicClient.readContract({
-        address: COUPON_NFT_ADDRESS,
-        abi: COUPON_NFT_ABI,
-        functionName: 'balanceOf',
-        args: [address]
-      }) as bigint
+      // Debug: read linkage and ownership info
+      const CM_LINK_ABI = [
+        { type: 'function', name: 'couponNftContract', inputs: [], outputs: [{ name: '', type: 'address' }], stateMutability: 'view' },
+        { type: 'function', name: 'operator', inputs: [], outputs: [{ name: '', type: 'address' }], stateMutability: 'view' }
+      ] as const
+      const NFT_LINK_ABI = [
+        { type: 'function', name: 'campaignManager', inputs: [], outputs: [{ name: '', type: 'address' }], stateMutability: 'view' },
+        { type: 'function', name: 'balanceOf', inputs: [{ name: 'owner', type: 'address' }], outputs: [{ name: '', type: 'uint256' }], stateMutability: 'view' }
+      ] as const
 
-      const userCoupons: Coupon[] = []
+      const [cmNftAddr, cmOperator, nftMgr, nftBal] = await Promise.all([
+        publicClient.readContract({ address: CAMPAIGN_MANAGER_ADDRESS, abi: CM_LINK_ABI, functionName: 'couponNftContract' }) as Promise<string>,
+        publicClient.readContract({ address: CAMPAIGN_MANAGER_ADDRESS, abi: CM_LINK_ABI, functionName: 'operator' }) as Promise<string>,
+        publicClient.readContract({ address: COUPON_NFT_ADDRESS, abi: NFT_LINK_ABI, functionName: 'campaignManager' }) as Promise<string>,
+        publicClient.readContract({ address: COUPON_NFT_ADDRESS, abi: NFT_LINK_ABI, functionName: 'balanceOf', args: [address] }) as Promise<bigint>,
+      ])
+      console.log('[useCouponNFT] links/operator/balance', {
+        campaignManagerAddress: CAMPAIGN_MANAGER_ADDRESS,
+        couponNftAddress: COUPON_NFT_ADDRESS,
+        cmReportsNft: cmNftAddr,
+        cmOperator,
+        nftReportsManager: nftMgr,
+        nftBalance: nftBal?.toString()
+      })
 
-      // Load each coupon
-      for (let i = 0; i < Number(balance); i++) {
-        try {
-          const tokenId = await publicClient.readContract({
+      // Minimal ABI for CampaignManager optimized getter
+      const CAMPAIGN_MANAGER_MIN_ABI = [
+        {
+          type: 'function',
+          name: 'getMyCouponsOptimized',
+          inputs: [{ name: '_maxTokenId', type: 'uint256' }],
+          outputs: [
+            { name: 'tokenIds', type: 'uint256[]' },
+            { name: 'values', type: 'uint256[]' }
+          ],
+          stateMutability: 'view'
+        }
+      ] as const
+
+      const [tokenIds, values] = await publicClient.readContract({
+        address: CAMPAIGN_MANAGER_ADDRESS,
+        abi: CAMPAIGN_MANAGER_MIN_ABI,
+        functionName: 'getMyCouponsOptimized',
+        args: [BigInt(2000)]
+      }) as unknown as [bigint[], bigint[]]
+      console.log('[useCouponNFT] getMyCouponsOptimized result', { tokenIds, values })
+
+      if (!tokenIds || tokenIds.length === 0) {
+        setCoupons([])
+        return
+      }
+
+      // Fetch tokenURIs in parallel
+      const uris = await Promise.all(
+        tokenIds.map((tokenId) =>
+          publicClient.readContract({
             address: COUPON_NFT_ADDRESS,
             abi: COUPON_NFT_ABI,
-            functionName: 'tokenOfOwnerByIndex',
-            args: [address, BigInt(i)]
-          }) as bigint
+            functionName: 'tokenURI',
+            args: [tokenId]
+          }) as Promise<string>
+        )
+      )
 
-          const [value, tokenURI] = await Promise.all([
-            publicClient.readContract({
-              address: COUPON_NFT_ADDRESS,
-              abi: COUPON_NFT_ABI,
-              functionName: 'getCouponValue',
-              args: [tokenId]
-            }) as Promise<bigint>,
-            publicClient.readContract({
-              address: COUPON_NFT_ADDRESS,
-              abi: COUPON_NFT_ABI,
-              functionName: 'tokenURI',
-              args: [tokenId]
-            }) as Promise<string>
-          ])
-
-          userCoupons.push({
-            tokenId,
-            value,
-            tokenURI
-          })
-    } catch (err) {
-          console.warn(`Failed to load coupon at index ${i}:`, err)
-        }
-      }
+      const userCoupons: Coupon[] = tokenIds.map((tokenId, i) => ({
+        tokenId,
+        value: values?.[i] ?? BigInt(0),
+        tokenURI: uris?.[i] ?? ''
+      }))
+      console.log('[useCouponNFT] composed coupons', userCoupons)
 
       setCoupons(userCoupons)
     } catch (err) {
-      console.warn('Failed to load coupons:', err)
-      // Don't set error for coupon loading failures
+      console.warn('Failed to load coupons (optimized):', err)
+      setCoupons([])
     } finally {
       setIsLoading(false)
     }

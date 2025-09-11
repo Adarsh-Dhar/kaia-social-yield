@@ -79,7 +79,7 @@ export default function AdvertiserHome() {
   const publicClient = usePublicClient();
 
   // USDT Token Address - deployed on Kairos testnet
-  const USDT_TOKEN_ADDRESS = "0x15bbf3994a491D6A2ff1e7BA3953A3C3de382Cee" as `0x${string}`;
+  const USDT_TOKEN_ADDRESS = "0x50DBbF87a5aED08BCACa0f9579494A7f74cc3fd2" as `0x${string}`;
 
   // Function to get USDT token address
   const getUsdtTokenAddress = useCallback((): `0x${string}` => {

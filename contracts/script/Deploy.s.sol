@@ -8,9 +8,8 @@ import {MockUSDT} from "../src/MockUSDT.sol";
 
 contract Deploy is Script {
     function run() external returns (CampaignManager, CouponNFT, MockUSDT) {
-        // Use the test private key address as the operator
-        // This is the address that corresponds to private key: 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
-        address testOperator = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+        // Use the target wallet as the operator
+        address targetOperator = 0xf76daC24BaEf645ee0b3dfAc1997c6b838eF280D;
         
         vm.startBroadcast();
         
@@ -21,16 +20,15 @@ contract Deploy is Script {
         uint256 initialSupply = 1_000_000 * (10 ** usdt.decimals());
         usdt.mint(msg.sender, initialSupply);
 
-        // Transfer 100 USDT to the test operator
+        // Transfer 100 USDT to the target operator
         uint256 transferAmount = 100 * (10 ** usdt.decimals());
-        require(usdt.transfer(testOperator, transferAmount), "Transfer failed");
+        require(usdt.transfer(targetOperator, transferAmount), "Transfer failed");
         
-        // Mint 100 USDT directly to the target wallet
-        address targetWallet = 0xf76daC24BaEf645ee0b3dfAc1997c6b838eF280D;
-        usdt.mint(targetWallet, transferAmount);
+        // Mint additional 100 USDT directly to the target wallet
+        usdt.mint(targetOperator, transferAmount);
 
-        // Deploy CampaignManager with test operator
-        CampaignManager campaignManager = new CampaignManager(address(usdt), testOperator);
+        // Deploy CampaignManager with target wallet as operator
+        CampaignManager campaignManager = new CampaignManager(address(usdt), targetOperator);
         
         // Deploy CouponNFT with the deployer as initial owner
         CouponNFT couponNft = new CouponNFT(msg.sender);

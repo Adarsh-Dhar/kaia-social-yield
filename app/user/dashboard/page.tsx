@@ -63,9 +63,11 @@ function DashboardContent() {
       setCmError(null)
       try {
         // Conservatively scan first 2000 tokenIds; adjust as needed
-        const { tokenIds, values } = await getMyCouponsOptimized(BigInt(2000))
+        const { tokenIds, values } = await getMyCouponsOptimized(BigInt(2000), address)
+        console.log('[Dashboard] getMyCouponsOptimized', { tokenIds, values })
         if (!cancelled) {
           const items = tokenIds.map((id, i) => ({ id, value: values[i] }))
+          console.log('[Dashboard] cmCoupons items', items)
           setCmCoupons(items)
         }
       } catch (e) {

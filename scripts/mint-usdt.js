@@ -4,7 +4,7 @@ const { kairos } = require('viem/chains');
 
 // Use the test private key for minting
 const MINT_PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
-const USDT_CONTRACT_ADDRESS = "0x15bbf3994a491D6A2ff1e7BA3953A3C3de382Cee";
+const USDT_CONTRACT_ADDRESS = "0x50DBbF87a5aED08BCACa0f9579494A7f74cc3fd2";
 const TARGET_WALLET = "0xf76daC24BaEf645ee0b3dfAc1997c6b838eF280D";
 
 const walletClient = createWalletClient({

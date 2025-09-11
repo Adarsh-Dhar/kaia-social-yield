@@ -14,6 +14,7 @@ interface MissionCardProps {
   completed?: boolean
   boostInfo?: string
   className?: string
+  disabled?: boolean
 }
 
 export function MissionCard({
@@ -25,6 +26,7 @@ export function MissionCard({
   completed = false,
   boostInfo,
   className,
+  disabled = false,
 }: MissionCardProps) {
   return (
     <Card className={cn("p-4 transition-all duration-200", completed && "opacity-60 bg-muted/50", className)}>
@@ -53,7 +55,12 @@ export function MissionCard({
         </div>
 
         {buttonText && !completed && (
-          <Button size="sm" onClick={onButtonClick} className="flex-shrink-0 text-xs px-3 py-1 h-8">
+          <Button 
+            size="sm" 
+            onClick={onButtonClick} 
+            disabled={disabled}
+            className="flex-shrink-0 text-xs px-3 py-1 h-8"
+          >
             {buttonText}
           </Button>
         )}

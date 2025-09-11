@@ -20,7 +20,7 @@ async function verifySystemStatus() {
     console.log('🔍 Verifying System Status...');
     console.log('============================');
     
-    const usdtAddress = '0x15bbf3994a491D6A2ff1e7BA3953A3C3de382Cee';
+    const usdtAddress = '0x50DBbF87a5aED08BCACa0f9579494A7f74cc3fd2';
     const targetWallet = '0xf76daC24BaEf645ee0b3dfAc1997c6b838eF280D';
     const testWallet = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
     

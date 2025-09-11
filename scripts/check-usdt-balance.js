@@ -8,7 +8,7 @@ const client = createPublicClient({
 
 async function checkUSDTBalance(walletAddress) {
   try {
-    const usdtAddress = '0x15bbf3994a491D6A2ff1e7BA3953A3C3de382Cee';
+    const usdtAddress = '0x50DBbF87a5aED08BCACa0f9579494A7f74cc3fd2';
     
     console.log('🔍 Checking USDT balance...');
     console.log('USDT Contract:', usdtAddress);
