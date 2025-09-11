@@ -357,6 +357,56 @@ export class CampaignManagerService {
     }
   }
 
+  async getMyCoupons(startTokenId: bigint, endTokenId: bigint): Promise<{ tokenIds: bigint[]; values: bigint[] }> {
+    if (!isContractAddressValid(CAMPAIGN_MANAGER_CONFIG.address)) {
+      throw new ContractNotDeployedError()
+    }
+
+    try {
+      const result = await this.publicClient.readContract({
+        address: CAMPAIGN_MANAGER_CONFIG.address,
+        abi: CAMPAIGN_MANAGER_CONFIG.abi,
+        functionName: 'getMyCoupons',
+        args: [startTokenId, endTokenId]
+      }) as unknown as [bigint[], bigint[]]
+
+      const [tokenIds, values] = result
+      return { tokenIds, values }
+    } catch (error) {
+      throw new CampaignManagerError('Failed to fetch my coupons', error)
+    }
+  }
+
+  async getMyCouponsOptimized(maxTokenId: bigint): Promise<{ tokenIds: bigint[]; values: bigint[] }> {
+    if (!isContractAddressValid(CAMPAIGN_MANAGER_CONFIG.address)) {
+      throw new ContractNotDeployedError()
+    }
+
+    try {
+      const result = await this.publicClient.readContract({
+        address: CAMPAIGN_MANAGER_CONFIG.address,
+        abi: CAMPAIGN_MANAGER_CONFIG.abi,
+        functionName: 'getMyCouponsOptimized',
+        args: [maxTokenId]
+      }) as unknown as [bigint[], bigint[]]
+
+      const [tokenIds, values] = result
+      return { tokenIds, values }
+    } catch (error) {
+      // Gracefully degrade for read failures (e.g., NFT not set yet, no coupons, or RPC hiccups)
+      if (
+        error instanceof Error && (
+          error.message.includes('NftContractNotSet') ||
+          error.message.includes('execution reverted') ||
+          error.message.includes('Internal JSON-RPC error')
+        )
+      ) {
+        return { tokenIds: [], values: [] }
+      }
+      return { tokenIds: [], values: [] }
+    }
+  }
+
   async getUsdtTokenAddress(): Promise<Address> {
     try {
       return await this.publicClient.readContract({
@@ -840,4 +890,28 @@ export async function getOperator(): Promise<Address> {
 export async function getOwner(): Promise<Address> {
   const service = await createCampaignManagerService()
   return service.getOwner()
+}
+
+export async function getMyCoupons(startTokenId: bigint, endTokenId: bigint): Promise<{ tokenIds: bigint[]; values: bigint[] }> {
+  try {
+    const service = await createCampaignManagerService()
+    return service.getMyCoupons(startTokenId, endTokenId)
+  } catch (error) {
+    if (error instanceof ContractNotDeployedError) {
+      return { tokenIds: [], values: [] }
+    }
+    return { tokenIds: [], values: [] }
+  }
+}
+
+export async function getMyCouponsOptimized(maxTokenId: bigint): Promise<{ tokenIds: bigint[]; values: bigint[] }> {
+  try {
+    const service = await createCampaignManagerService()
+    return service.getMyCouponsOptimized(maxTokenId)
+  } catch (error) {
+    if (error instanceof ContractNotDeployedError) {
+      return { tokenIds: [], values: [] }
+    }
+    return { tokenIds: [], values: [] }
+  }
 }

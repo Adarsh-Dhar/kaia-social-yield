@@ -12,10 +12,14 @@ import { Loader2, AlertCircle, Gift, DollarSign } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useEffect, useState } from "react"
 import { ErrorBoundary } from "@/components/error-boundary"
+import { getMyCouponsOptimized } from "@/lib/campaign_manager"
 
 function DashboardContent() {
   const { data: userData, loading: userLoading, error: userError } = useUserData()
   const { address, isConnected } = useAccount()
+  const [cmCoupons, setCmCoupons] = useState<{ id: bigint; value: bigint }[]>([])
+  const [cmLoading, setCmLoading] = useState(false)
+  const [cmError, setCmError] = useState<string | null>(null)
   
   // Contract hooks
   const { 
@@ -48,7 +52,35 @@ function DashboardContent() {
       .slice(0, 2)
   }
 
-  if (userLoading || usdtLoading || couponLoading) {
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      if (!isConnected) {
+        setCmCoupons([])
+        return
+      }
+      setCmLoading(true)
+      setCmError(null)
+      try {
+        // Conservatively scan first 2000 tokenIds; adjust as needed
+        const { tokenIds, values } = await getMyCouponsOptimized(BigInt(2000))
+        if (!cancelled) {
+          const items = tokenIds.map((id, i) => ({ id, value: values[i] }))
+          setCmCoupons(items)
+        }
+      } catch (e) {
+        if (!cancelled) setCmError(e instanceof Error ? e.message : 'Failed to load coupons')
+      } finally {
+        if (!cancelled) setCmLoading(false)
+      }
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [isConnected])
+
+  if (userLoading || usdtLoading || couponLoading || cmLoading) {
     return (
       <div className="min-h-screen bg-background">
         <div className="p-4 max-w-md mx-auto flex items-center justify-center min-h-[calc(100vh-4rem)]">
@@ -61,14 +93,14 @@ function DashboardContent() {
     )
   }
 
-  if (userError || usdtError || couponError) {
+  if (userError || usdtError || couponError || cmError) {
     return (
       <div className="min-h-screen bg-background">
         <div className="p-4 max-w-md mx-auto">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              {userError || usdtError || couponError || "Failed to load dashboard data"}
+              {userError || usdtError || couponError || cmError || "Failed to load dashboard data"}
             </AlertDescription>
           </Alert>
         </div>
@@ -118,6 +150,27 @@ function DashboardContent() {
 
         {/* Coupon Display */}
         <CouponDisplay />
+
+        {/* Coupons from CampaignManager.getMyCouponsOptimized */}
+        {cmCoupons.length > 0 && (
+          <Card className="bg-card border-border">
+            <CardHeader className="pb-2">
+              <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                <Gift className="h-4 w-4" /> My Coupons (on-chain)
+              </h3>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="grid grid-cols-1 gap-2">
+                {cmCoupons.map((c) => (
+                  <div key={c.id.toString()} className="flex items-center justify-between rounded-md border border-border px-3 py-2">
+                    <span className="text-sm text-muted-foreground">#{c.id.toString()}</span>
+                    <span className="text-sm font-medium text-foreground">{formatUsdt(c.value)} USDT</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Action Buttons */}
         <div className="grid grid-cols-2 gap-4">

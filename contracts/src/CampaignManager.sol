@@ -11,6 +11,7 @@ interface ICouponNFT {
     function getCouponValue(uint256 tokenId) external view returns (uint256);
     function ownerOf(uint256 tokenId) external view returns (address);
     function burnCoupon(uint256 tokenId) external;
+    function balanceOf(address owner) external view returns (uint256);
 }
 
 /**
@@ -156,6 +157,134 @@ contract CampaignManager is Ownable, ReentrancyGuard {
         require(usdtToken.transfer(msg.sender, couponValue), "Transfer failed");
 
         emit CouponRedeemed(msg.sender, _tokenId, couponValue);
+    }
+
+    /**
+     * @notice Gets all coupon token IDs owned by the caller.
+     * @dev This function iterates through a range of token IDs to find owned coupons.
+     * @param _startTokenId The starting token ID to search from.
+     * @param _endTokenId The ending token ID to search to.
+     * @return tokenIds Array of token IDs owned by the caller.
+     * @return values Array of corresponding coupon values.
+     */
+    function getMyCoupons(uint256 _startTokenId, uint256 _endTokenId) external view returns (uint256[] memory tokenIds, uint256[] memory values) {
+        if (address(couponNftContract) == address(0)) revert NftContractNotSet();
+        
+        // First pass: count how many tokens the user owns in the range
+        uint256 ownedCount = 0;
+        for (uint256 i = _startTokenId; i <= _endTokenId; i++) {
+            try couponNftContract.ownerOf(i) returns (address owner) {
+                if (owner == msg.sender) {
+                    ownedCount++;
+                }
+            } catch {
+                // Token doesn't exist, continue
+                continue;
+            }
+        }
+        
+        // Second pass: collect the actual token IDs and values
+        tokenIds = new uint256[](ownedCount);
+        values = new uint256[](ownedCount);
+        uint256 index = 0;
+        
+        for (uint256 i = _startTokenId; i <= _endTokenId; i++) {
+            try couponNftContract.ownerOf(i) returns (address owner) {
+                if (owner == msg.sender) {
+                    tokenIds[index] = i;
+                    values[index] = couponNftContract.getCouponValue(i);
+                    index++;
+                }
+            } catch {
+                // Token doesn't exist, continue
+                continue;
+            }
+        }
+        
+        return (tokenIds, values);
+    }
+
+    /**
+     * @notice Gets all coupon token IDs owned by a specific address.
+     * @dev This function iterates through a range of token IDs to find owned coupons.
+     * @param _user The address to check for owned coupons.
+     * @param _startTokenId The starting token ID to search from.
+     * @param _endTokenId The ending token ID to search to.
+     * @return tokenIds Array of token IDs owned by the user.
+     * @return values Array of corresponding coupon values.
+     */
+    function getUserCoupons(address _user, uint256 _startTokenId, uint256 _endTokenId) external view returns (uint256[] memory tokenIds, uint256[] memory values) {
+        if (address(couponNftContract) == address(0)) revert NftContractNotSet();
+        
+        // First pass: count how many tokens the user owns in the range
+        uint256 ownedCount = 0;
+        for (uint256 i = _startTokenId; i <= _endTokenId; i++) {
+            try couponNftContract.ownerOf(i) returns (address owner) {
+                if (owner == _user) {
+                    ownedCount++;
+                }
+            } catch {
+                // Token doesn't exist, continue
+                continue;
+            }
+        }
+        
+        // Second pass: collect the actual token IDs and values
+        tokenIds = new uint256[](ownedCount);
+        values = new uint256[](ownedCount);
+        uint256 index = 0;
+        
+        for (uint256 i = _startTokenId; i <= _endTokenId; i++) {
+            try couponNftContract.ownerOf(i) returns (address owner) {
+                if (owner == _user) {
+                    tokenIds[index] = i;
+                    values[index] = couponNftContract.getCouponValue(i);
+                    index++;
+                }
+            } catch {
+                // Token doesn't exist, continue
+                continue;
+            }
+        }
+        
+        return (tokenIds, values);
+    }
+
+    /**
+     * @notice Gets all coupon token IDs owned by the caller (optimized version).
+     * @dev This function first checks the user's balance and then searches efficiently.
+     * @param _maxTokenId The maximum token ID to search up to.
+     * @return tokenIds Array of token IDs owned by the caller.
+     * @return values Array of corresponding coupon values.
+     */
+    function getMyCouponsOptimized(uint256 _maxTokenId) external view returns (uint256[] memory tokenIds, uint256[] memory values) {
+        if (address(couponNftContract) == address(0)) revert NftContractNotSet();
+        
+        uint256 balance = couponNftContract.balanceOf(msg.sender);
+        if (balance == 0) {
+            return (new uint256[](0), new uint256[](0));
+        }
+        
+        // Pre-allocate arrays with the known balance size
+        tokenIds = new uint256[](balance);
+        values = new uint256[](balance);
+        uint256 index = 0;
+        
+        // Search through token IDs up to the maximum
+        for (uint256 i = 0; i <= _maxTokenId && index < balance; i++) {
+            try couponNftContract.ownerOf(i) returns (address owner) {
+                if (owner == msg.sender) {
+                    tokenIds[index] = i;
+                    values[index] = couponNftContract.getCouponValue(i);
+                    index++;
+                }
+            } catch {
+                // Token doesn't exist, continue
+                continue;
+            }
+        }
+        
+        return (tokenIds, values);
     }
 
     // =================================================================
