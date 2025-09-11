@@ -9,6 +9,7 @@ import { useCouponNFT } from "@/hooks/use-coupon-nft"
 import { CouponDisplay } from "@/components/coupon-display"
 import { useAccount } from "wagmi"
 import { Loader2, AlertCircle, Gift, DollarSign } from "lucide-react"
+import { toast } from "@/hooks/use-toast"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useEffect, useState } from "react"
 import { ErrorBoundary } from "@/components/error-boundary"
@@ -34,7 +35,8 @@ function DashboardContent() {
     usdtBalance: couponUsdtBalance,
     isLoading: couponLoading, 
     error: couponError,
-    formatUsdt: formatCouponUsdt 
+    formatUsdt: formatCouponUsdt,
+    redeemCoupon: redeemCouponFromHook
   } = useCouponNFT()
 
   // Calculate total USDT balance (from both sources)
@@ -50,6 +52,27 @@ function DashboardContent() {
       .join("")
       .toUpperCase()
       .slice(0, 2)
+  }
+
+  const handleRedeemCoupon = async (tokenId: string) => {
+    try {
+      const hash = await redeemCouponFromHook(tokenId)
+      if (hash) {
+        toast({
+          title: "USDT Retrieved! 💰",
+          description: `Successfully retrieved USDT from coupon NFT! Transaction: ${hash.slice(0, 10)}...`,
+          duration: 5000,
+        })
+        // Refresh the page to update balances
+        window.location.reload()
+      }
+    } catch (error) {
+      toast({
+        title: "Retrieval Failed",
+        description: error instanceof Error ? error.message : "Failed to retrieve USDT from coupon",
+        variant: "destructive",
+      })
+    }
   }
 
   useEffect(() => {
@@ -165,8 +188,22 @@ function DashboardContent() {
               <div className="grid grid-cols-1 gap-2">
                 {cmCoupons.map((c) => (
                   <div key={c.id.toString()} className="flex items-center justify-between rounded-md border border-border px-3 py-2">
-                    <span className="text-sm text-muted-foreground">#{c.id.toString()}</span>
-                    <span className="text-sm font-medium text-foreground">{formatUsdt(c.value)} USDT</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-muted-foreground">#{c.id.toString()}</span>
+                      <span className="text-sm font-medium text-foreground">{formatUsdt(c.value)} USDT</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => handleRedeemCoupon(c.id.toString())}
+                      disabled={couponLoading}
+                      className="h-8 px-3 text-xs"
+                    >
+                      {couponLoading ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        "Retrieve"
+                      )}
+                    </Button>
                   </div>
                 ))}
               </div>
